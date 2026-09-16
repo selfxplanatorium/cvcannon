@@ -4,15 +4,21 @@ Run all commands from the project root.
 
 cvcannon supports two setup paths. Docker provides the shortest reproducible setup. Native setup uses tools installed directly on the host. Both paths produce the same files and use the same checks.
 
+## Agent-led first run
+
+Launch the preferred agent harness from the repository root. The agent checks `.cvcannon/mode`. On a new clone it asks whether to use Docker or native tools, saves the answer locally, and performs the setup commands itself. The user supplies the preference and any required candidate material; the agent operates the scripts.
+
+The choice is stored only in `.cvcannon/mode`, which Git ignores. Tell the agent if you want to switch later.
+
 ## Docker setup
 
-Install a current Docker Desktop, or Docker Engine with the Docker Compose plugin. Then run:
+Install a current Docker Desktop, or Docker Engine with the Docker Compose plugin. The agent then runs:
 
 ```bash
 ./docker-setup.sh
 ```
 
-The script verifies Docker, builds the image, configures the committed Git hook, lists the available templates, and runs the privacy check. If `PROFILE/master-cv.html` already exists, it also runs the full environment doctor. Otherwise it prints the profile creation steps.
+The user is not expected to launch this script manually. The script verifies Docker, builds the image, configures the committed Git hook, lists the available templates, and runs the privacy check. If `PROFILE/master-cv.html` already exists, it also runs the full environment doctor. Otherwise it reports the profile creation steps to the agent.
 
 Continue with Docker-prefixed targets such as `make docker-profile`, `make docker-new`, and `make docker-build`. The full workflow and command mapping are in [DOCKER.md](DOCKER.md).
 

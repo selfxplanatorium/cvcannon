@@ -4,6 +4,10 @@ Run commands from the project root.
 
 Every document command has a Docker equivalent. See [Docker commands](#docker-commands) or the [Docker guide](DOCKER.md).
 
+## `bash scripts/mode.sh [docker|native]`
+
+With no argument, prints the locally selected execution mode. With `docker` or `native`, saves that mode under the ignored `.cvcannon/` directory. The agent uses this during first-time setup; users do not need to invoke it themselves.
+
 ## `make setup`
 
 Configures Git hooks, sets executable bits, and runs `doctor`. It initializes a Git repository when needed.

@@ -26,41 +26,29 @@ The included design is a starting point. Templates are intentionally customizabl
 
 ## Quick start
 
-### 1. Install the prerequisites
+### 1. Open cvcannon with your agent
 
-Choose either Docker or a native installation.
+Clone the repository, change into its root folder, and launch your preferred agent harness there. Give the agent your existing CV or career information, job listings, or simply ask it to set up cvcannon.
 
-#### Docker: fastest setup
+On first use, the agent asks you to choose:
 
-Install a current Docker Desktop, or Docker Engine with the Compose plugin, then run:
+- **Docker:** cvcannon supplies Python, Chromium, Poppler, and system fonts in a reproducible container. You need Docker Desktop, or Docker Engine with the Compose plugin.
+- **Native:** cvcannon uses Python, Chromium, Poppler, Make, and Git installed directly on your computer.
+
+The agent saves the choice locally, performs setup, checks the environment, and uses the matching commands in later sessions. You do not need to launch repository setup scripts yourself.
+
+Docker remains a tool runner. The agent stays in the host repository, reads `AGENTS.md`, and edits the host files.
+
+For reference, the agent runs commands like these in Docker mode:
 
 ```bash
 ./docker-setup.sh
-```
-
-The script builds the complete toolchain, configures the repository hooks, and checks the container. It then prints the exact next step based on whether an authoritative CV already exists. The agent still runs in your chosen harness on the host; Docker runs the deterministic build tools.
-
-Use the Docker-prefixed commands for the rest of the workflow:
-
-```bash
 make docker-profile
 make docker-new SLUG=acme-platform-engineer
 make docker-build SLUG=acme-platform-engineer
 ```
 
 See the [Docker guide](docs/DOCKER.md) for the complete command list and architecture.
-
-#### Native installation
-
-You need:
-
-- Python 3.10 or newer
-- GNU Make
-- Git
-- Chromium or Google Chrome
-- Poppler tools: `pdfinfo`, `pdftotext`, `pdffonts`, `pdfimages`, and `pdftoppm`
-
-See the [complete setup guide](docs/SETUP.md) for package names and platform notes.
 
 ### 2. Provide existing candidate information
 
@@ -72,13 +60,13 @@ Use whichever format is already available:
 
 The agent creates `PROFILE/master-cv.html` from the supplied material. This becomes the authoritative CV used in every later session. A portrait is optional; save it as `PROFILE/portrait.png` when wanted.
 
-For manual setup, create the master shell:
+The agent creates the master shell using the selected execution mode. The underlying native command is:
 
 ```bash
 make profile
 ```
 
-With Docker, use `make docker-profile` instead.
+In Docker mode it uses `make docker-profile` instead.
 
 Fill it from the supplied source material, remove unused sections and placeholders, then continue.
 
@@ -97,7 +85,7 @@ make privacy
 
 `make setup` configures the project and checks the required software and authoritative CV.
 
-Docker users already configured the repository with `./docker-setup.sh`; after completing the master CV, run `make docker-doctor` and `make docker-privacy` here.
+In Docker mode, the agent already configured the repository with `./docker-setup.sh`; after completing the master CV, it runs `make docker-doctor` and `make docker-privacy` here.
 
 ### 4. Provide one or more listings
 
@@ -155,6 +143,7 @@ Automated checks cannot judge factual accuracy, writing quality, visual balance,
 | --- | --- |
 | `BASE/TEMPLATES/<name>/` | Saved CV and cover letter template pairs |
 | `ASSETS/fonts/` | Lexend fonts and license |
+| `.cvcannon/mode` | Ignored local choice between Docker and native tools |
 | `PROFILE/master-cv.html` | Authoritative candidate CV |
 | `PROFILE/` | Original source files and optional portrait |
 | `APPLICATIONS/` | Role-specific sources, PDFs, and previews |

@@ -2,7 +2,7 @@
 
 ## Docker is unavailable
 
-Run `docker info` and `docker compose version`. Start Docker Desktop or the Docker daemon if the first command fails. Install the Docker Compose plugin if the second command fails, then rerun `./docker-setup.sh`.
+Ask the agent to run `docker info` and `docker compose version`. Start Docker Desktop or the Docker daemon if the first command fails. Install the Docker Compose plugin if the second command fails, then have the agent rerun `./docker-setup.sh`.
 
 ## Docker-generated files have the wrong owner
 

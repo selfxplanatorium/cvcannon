@@ -56,7 +56,7 @@ docker compose version
 
 ## One-command setup
 
-From the repository root, run:
+On the first session, the agent asks whether to use Docker or native tools. When Docker is selected, the agent saves that preference and runs this command from the repository root:
 
 ```bash
 ./docker-setup.sh
@@ -70,6 +70,8 @@ The script:
 4. maps container writes to the current host user and group;
 5. lists the available templates and runs the privacy scan; and
 6. runs the full doctor when an authoritative CV already exists.
+
+This is an implementation command for the agent. The normal user flow is to open the harness in the repository and answer its setup question; the user does not need to launch the script.
 
 No candidate data is copied into the image. `PROFILE/` and `APPLICATIONS/` are excluded from the build context by `.dockerignore` and mounted only at runtime.
 

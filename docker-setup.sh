@@ -41,9 +41,9 @@ if [[ -s PROFILE/master-cv.html ]]; then
   echo "  make docker-new SLUG=company-role"
 else
   echo
-  echo "The Docker toolchain is ready. To create the authoritative CV:"
-  echo "  1. Drop an existing CV or career notes into PROFILE/, or provide them to your agent."
-  echo "  2. Run: make docker-profile"
-  echo "  3. Ask your agent to complete PROFILE/master-cv.html from that material."
-  echo "  4. Run: make docker-doctor"
+  echo "The Docker toolchain is ready. Continue the agent workflow:"
+  echo "  1. Ask the user to drop an existing CV or career notes into PROFILE/, or provide them in chat."
+  echo "  2. Run make docker-profile."
+  echo "  3. Complete PROFILE/master-cv.html from the supplied material."
+  echo "  4. Run make docker-doctor."
 fi

@@ -46,6 +46,21 @@ When the user chooses Docker, use the corresponding `docker-` target, such as `m
 
 The scripts do not interpret job listings, choose evidence, or write tailored content. The agent must complete those steps after scaffolding.
 
+## First-time execution setup
+
+At the beginning of work, check `.cvcannon/mode`.
+
+If the file is missing, ask the user one short question before running setup: whether they want the Docker toolchain or tools installed natively. Explain that Docker standardizes Python, Chromium, Poppler, and fonts; native mode uses installations already available on their machine. Do not choose on the user's behalf.
+
+After the user answers:
+
+1. Run `bash scripts/mode.sh docker` or `bash scripts/mode.sh native` to save the choice locally.
+2. For Docker, run `bash docker-setup.sh` yourself. Do not tell the user to launch it.
+3. For native mode, inspect the prerequisites and guide any required system installation, then run the native commands yourself. Run `make setup` after the authoritative CV has been completed because its doctor validates that file.
+4. Use the selected command family for later work: `make docker-*` for Docker or the ordinary `make` targets for native mode.
+
+The saved mode is a local preference and is ignored by Git. If the user asks to switch modes, update it with `scripts/mode.sh` and run the selected setup. Never require the user to launch repository scripts manually; invoke them through the harness.
+
 ## Sources of truth
 
 Use these sources in this order:
