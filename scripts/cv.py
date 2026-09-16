@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Create, render, and verify tailored CV application packs."""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+from html.parser import HTMLParser
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+PROFILE = ROOT / "PROFILE"
+MASTER_CV = PROFILE / "master-cv.html"
+APPLICATIONS = ROOT / "APPLICATIONS"
+TEMPLATES = ROOT / "BASE" / "TEMPLATES"
+DEFAULT_TEMPLATE = "default"
+SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
+REQUIRED_TOOLS = ("pdfinfo", "pdftotext", "pdffonts", "pdfimages", "pdftoppm")
+DOCUMENTS = (("cv.html", "cv.pdf", 800), ("cover-letter.html", "cover-letter.pdf", 300))
+
+
+class VisibleText(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hidden = 0
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"style", "script"}:
+            self.hidden += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"style", "script"} and self.hidden:
+            self.hidden -= 1
+
+    def handle_data(self, data: str) -> None:
+        if not self.hidden:
+            self.parts.append(data)
+
+
+def fail(message: str) -> "NoReturn":
+    print(f"ERROR: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def tool(name: str) -> str | None:
+    return shutil.which(name)
+
+
+def browser() -> str | None:
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable"):
+        found = tool(name)
+        if found:
+            return found
+    mac = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    return str(mac) if mac.exists() else None
+
+
+def require_master_cv() -> None:
+    if not MASTER_CV.is_file() or not MASTER_CV.read_text(errors="ignore").strip():
+        fail(
+            "missing `PROFILE/master-cv.html`. Ask the user to provide an existing CV, "
+            "a text or document file in `PROFILE/`, or their career information in chat; "
+            "then create the authoritative HTML CV with `make profile`."
+        )
+
+
+def validate_png(path: Path) -> None:
+    if not path.is_file():
+        fail(f"missing {path.relative_to(ROOT)}")
+    if path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+        fail(f"{path.relative_to(ROOT)} exists but is not a PNG file")
+
+
+def validate_slug(value: str) -> str:
+    if not value:
+        fail("missing SLUG. Example: make new SLUG=acme-platform-engineer")
+    if not SLUG_RE.fullmatch(value):
+        fail("SLUG must contain lowercase letters, digits, and single hyphen separators")
+    return value
+
+
+def app_dir(slug: str) -> Path:
+    return APPLICATIONS / validate_slug(slug)
+
+
+def template_bundle(value: str = "") -> tuple[str, Path]:
+    name = value or DEFAULT_TEMPLATE
+    if not SLUG_RE.fullmatch(name):
+        fail("TEMPLATE must contain lowercase letters, digits, and hyphens")
+    bundle = TEMPLATES / name
+    missing = [filename for filename in ("cv.html", "cover-letter.html") if not (bundle / filename).is_file()]
+    if missing:
+        fail(f"template `{name}` is missing: " + ", ".join(missing))
+    return name, bundle
+
+
+def master_template_name() -> str:
+    source = MASTER_CV.read_text()
+    match = re.search(r'<meta name="cvcannon-template" content="([a-z0-9-]+)">', source)
+    return match.group(1) if match else DEFAULT_TEMPLATE
+
+
+def list_templates() -> None:
+    found = []
+    for path in sorted(TEMPLATES.iterdir()):
+        if path.is_dir() and (path / "cv.html").is_file() and (path / "cover-letter.html").is_file():
+            found.append(path.name)
+    if not found:
+        fail("no complete template bundles found under BASE/TEMPLATES")
+    print("Available templates:")
+    for name in found:
+        print(f"  {name}")
+
+
+def run(command: list[str], *, capture: bool = False) -> str:
+    result = subprocess.run(
+        command,
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+    )
+    if result.returncode:
+        detail = (result.stderr or result.stdout or "").strip()
+        fail(f"command failed ({' '.join(command)}): {detail}")
+    return result.stdout if capture else ""
+
+
+def doctor() -> None:
+    problems: list[str] = []
+    browser_path = browser()
+    if not browser_path:
+        problems.append("Chromium or Google Chrome")
+    for name in REQUIRED_TOOLS:
+        if not tool(name):
+            problems.append(name)
+    for path in (
+        TEMPLATES / DEFAULT_TEMPLATE / "cv.html",
+        TEMPLATES / DEFAULT_TEMPLATE / "cover-letter.html",
+        ROOT / "ASSETS" / "fonts" / "Lexend-Regular.ttf",
+    ):
+        if not path.is_file():
+            problems.append(str(path.relative_to(ROOT)))
+    if problems:
+        fail("missing required software or project files: " + ", ".join(problems))
+    require_master_cv()
+    validate_html(MASTER_CV, cv=True, portrait_src="portrait.png")
+    print(f"Browser: {browser_path}")
+    print("Poppler tools: ready")
+    print("Authoritative CV: PROFILE/master-cv.html")
+
+
+def create_master(template: str = "") -> None:
+    if MASTER_CV.exists():
+        fail("PROFILE/master-cv.html already exists; refusing to overwrite it")
+    name, bundle = template_bundle(template)
+    source = (bundle / "cv.html").read_text()
+    source = source.replace("../../../ASSETS/", "../ASSETS/")
+    source = source.replace('src="../../../PROFILE/portrait.png"', 'src="portrait.png"')
+    source = source.replace(
+        "<head>", f'<head>\n  <meta name="cvcannon-template" content="{name}">', 1
+    )
+    MASTER_CV.write_text(source)
+    print(f"Created PROFILE/master-cv.html from template `{name}`")
+    print("Fill it from the supplied CV, files, or chat. Remove the portrait element if no photo is wanted.")
+
+
+def new(slug: str, template: str = "") -> None:
+    require_master_cv()
+    validate_html(MASTER_CV, cv=True, portrait_src="portrait.png")
+    name, bundle = template_bundle(template or master_template_name())
+    target = app_dir(slug)
+    if target.exists():
+        fail(f"{target.relative_to(ROOT)} already exists; refusing to overwrite it")
+    target.mkdir(parents=True)
+    if template:
+        cv_source = (bundle / "cv.html").read_text()
+        cv_source = cv_source.replace("../../../ASSETS/", "../../ASSETS/")
+        cv_source = cv_source.replace("../../../PROFILE/", "../../PROFILE/")
+    else:
+        cv_source = MASTER_CV.read_text()
+        cv_source = cv_source.replace("../ASSETS/", "../../ASSETS/")
+        cv_source = cv_source.replace('src="portrait.png"', 'src="../../PROFILE/portrait.png"')
+    (target / "cv.html").write_text(cv_source)
+    cover_source = (bundle / "cover-letter.html").read_text()
+    cover_source = cover_source.replace("../../../ASSETS/", "../../ASSETS/")
+    (target / "cover-letter.html").write_text(cover_source)
+    (target / "job-description.md").write_text(
+        "# Job listing\n\nPaste the complete listing text here (preferred). If only a link was supplied, record the URL, retrieval date, and retrieved listing text.\n"
+    )
+    print(f"Created {target.relative_to(ROOT)} with template `{name}`")
+    if template:
+        print("Populate the selected CV template from PROFILE/master-cv.html, then tailor it for the role.")
+    print("Edit cv.html and cover-letter.html, then run: " + f"make build SLUG={slug}")
+
+
+def visible_text(path: Path) -> str:
+    parser = VisibleText()
+    parser.feed(path.read_text())
+    return " ".join(" ".join(parser.parts).split())
+
+
+def validate_html(path: Path, *, cv: bool, portrait_src: str = "../../PROFILE/portrait.png") -> None:
+    if not path.is_file():
+        fail(f"missing {path.relative_to(ROOT)}")
+    source = path.read_text()
+    text = visible_text(path)
+    runtime_source = re.sub(r"<!--.*?-->", "", source, flags=re.S)
+    runtime_source = re.sub(r"<(style|script)\b.*?</\1>", "", runtime_source, flags=re.S | re.I)
+    unresolved = re.findall(r"\{\{[^{}]+\}\}|\[[^\[\]]{2,5000}\]", runtime_source)
+    if unresolved:
+        sample = ", ".join(unresolved[:3])
+        fail(f"unresolved placeholders in {path.relative_to(ROOT)}: {sample}")
+    if "lorem ipsum" in text.lower():
+        fail(f"placeholder prose remains in {path.relative_to(ROOT)}")
+    dependency_source = re.sub(r"<!--.*?-->", "", source, flags=re.S)
+    remote_resource = re.search(
+        r"<(?:script|img|link)\b[^>]+(?:src|href)=[\"']https?://|"
+        r"(?:@import|url\()[^;)]*https?://",
+        dependency_source,
+        re.I,
+    )
+    if remote_resource:
+        fail(f"remote runtime dependency found in {path.relative_to(ROOT)}")
+    if cv:
+        has_portrait = 'class="profile-pic"' in source
+        has_file_portrait = f'src="{portrait_src}"' in source
+        has_embedded_portrait = re.search(r'src=["\']data:image/', source, re.I)
+        if has_portrait and not (has_file_portrait or has_embedded_portrait):
+            fail(f'CV portrait must use src="{portrait_src}" or an embedded image')
+        if has_file_portrait:
+            validate_png(PROFILE / "portrait.png")
+
+
+def render(html: Path, pdf: Path) -> None:
+    browser_path = browser()
+    if not browser_path:
+        fail("Chromium or Google Chrome is required")
+    command = [
+        browser_path,
+        "--headless",
+        "--disable-gpu",
+        "--allow-file-access-from-files",
+        "--no-pdf-header-footer",
+        "--virtual-time-budget=3000",
+        f"--print-to-pdf={pdf.resolve()}",
+    ]
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        command.append("--no-sandbox")
+    command.append(html.resolve().as_uri())
+    run(command)
+    if not pdf.is_file() or pdf.stat().st_size < 1_000:
+        fail(f"browser did not produce a valid {pdf.relative_to(ROOT)}")
+
+
+def pdfinfo(pdf: Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for line in run(["pdfinfo", str(pdf)], capture=True).splitlines():
+        if ":" in line:
+            key, value = line.split(":", 1)
+            result[key.strip()] = value.strip()
+    return result
+
+
+def verify_pdf(pdf: Path, *, min_chars: int, require_image: bool) -> None:
+    if not pdf.is_file():
+        fail(f"missing {pdf.relative_to(ROOT)}")
+    info = pdfinfo(pdf)
+    if info.get("Pages") != "1":
+        fail(f"{pdf.name} must have exactly one page; found {info.get('Pages', 'unknown')}")
+    if "A4" not in info.get("Page size", ""):
+        fail(f"{pdf.name} is not A4: {info.get('Page size', 'unknown')}")
+
+    fonts = run(["pdffonts", str(pdf)], capture=True)
+    if "Type 3" in fonts:
+        fail(f"{pdf.name} contains Type 3 fonts; its text may not be selectable")
+    font_rows = [line for line in fonts.splitlines()[2:] if line.strip()]
+    if not font_rows:
+        fail(f"{pdf.name} contains no detectable fonts")
+    for row in font_rows:
+        columns = row.split()
+        if len(columns) >= 6 and columns[-5].lower() != "yes":
+            fail(f"{pdf.name} contains a non-embedded font: {columns[0]}")
+
+    text = run(["pdftotext", str(pdf), "-"], capture=True)
+    compact = re.sub(r"\s+", "", text)
+    if len(compact) < min_chars:
+        fail(f"{pdf.name} has only {len(compact)} extracted characters; expected at least {min_chars}")
+    if "{{" in text or "lorem ipsum" in text.lower():
+        fail(f"{pdf.name} contains unresolved template content")
+
+    if require_image:
+        images = run(["pdfimages", "-list", str(pdf)], capture=True)
+        rows = [line for line in images.splitlines() if re.match(r"\s*\d+\s+\d+\s+", line)]
+        if not rows:
+            fail(f"{pdf.name} does not contain the portrait image")
+
+
+def check(slug: str) -> None:
+    target = app_dir(slug)
+    if not target.is_dir():
+        fail(f"missing {target.relative_to(ROOT)}")
+    preview_dir = target / "previews"
+    preview_dir.mkdir(exist_ok=True)
+    for html_name, pdf_name, min_chars in DOCUMENTS:
+        pdf = target / pdf_name
+        html = target / html_name
+        require_image = html_name == "cv.html" and 'class="profile-pic"' in html.read_text()
+        verify_pdf(pdf, min_chars=min_chars, require_image=require_image)
+        run([
+            "pdftoppm", "-png", "-singlefile", "-r", "144", str(pdf),
+            str(preview_dir / Path(pdf_name).stem),
+        ])
+        print(f"PASS {pdf.relative_to(ROOT)}: one A4 page, embedded fonts, extractable text")
+    print(f"Previews: {preview_dir.relative_to(ROOT)}")
+    print("Open both preview PNGs and visually inspect layout before sending the PDFs.")
+
+
+def build(slug: str) -> None:
+    doctor()
+    target = app_dir(slug)
+    if not target.is_dir():
+        fail(f"missing {target.relative_to(ROOT)}; run make new SLUG={slug} first")
+    for html_name, pdf_name, _ in DOCUMENTS:
+        html = target / html_name
+        validate_html(html, cv=(html_name == "cv.html"))
+        render(html, target / pdf_name)
+    check(slug)
+
+
+def clean(slug: str) -> None:
+    target = app_dir(slug)
+    if not target.is_dir():
+        fail(f"missing {target.relative_to(ROOT)}")
+    for _, pdf_name, _ in DOCUMENTS:
+        (target / pdf_name).unlink(missing_ok=True)
+    shutil.rmtree(target / "previews", ignore_errors=True)
+    print(f"Removed generated PDFs and previews from {target.relative_to(ROOT)}")
+
+
+def help_text() -> None:
+    print(
+        """cvcannon — turn batches of job listings into polished application packs
+
+  make setup                         initialize local Git and hooks, then run doctor
+  make templates                     list saved template bundles
+  make profile [TEMPLATE=name]       create the authoritative CV with a template
+  make doctor                        check tools and the authoritative CV
+  make new SLUG=role [TEMPLATE=name] scaffold an application, optionally with another template
+  make build SLUG=company-role       render, verify, and create preview PNGs
+  make check SLUG=company-role       verify existing PDFs and refresh previews
+  make clean SLUG=company-role       remove generated PDFs and previews
+  make privacy                       scan Git candidates for personal data
+"""
+    )
+
+
+def main(argv: list[str]) -> None:
+    command = argv[1] if len(argv) > 1 else "help"
+    slug = argv[2] if len(argv) > 2 else ""
+    template = argv[3] if len(argv) > 3 else ""
+    actions = {
+        "help": lambda: help_text(),
+        "templates": list_templates,
+        "profile": lambda: create_master(slug),
+        "doctor": doctor,
+        "new": lambda: new(slug, template),
+        "build": lambda: build(slug),
+        "check": lambda: check(slug),
+        "clean": lambda: clean(slug),
+    }
+    action = actions.get(command)
+    if not action:
+        fail(f"unknown command: {command}")
+    action()
+
+
+if __name__ == "__main__":
+    main(sys.argv)

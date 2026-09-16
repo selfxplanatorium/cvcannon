@@ -1,0 +1,21 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  public-repository-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Compile pipeline scripts
+        run: python -m py_compile scripts/cv.py scripts/privacy_check.py
+      - name: Check public files for privacy risks
+        run: python scripts/privacy_check.py

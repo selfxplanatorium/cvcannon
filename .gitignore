@@ -1,0 +1,17 @@
+# Candidate profile data.
+PROFILE/*
+!PROFILE/.gitkeep
+!PROFILE/README.md
+
+# Applications contain personal data and tailored job-search material.
+APPLICATIONS/*
+!APPLICATIONS/.gitkeep
+!APPLICATIONS/README.md
+
+# Generated files.
+*.pdf
+*.log
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
