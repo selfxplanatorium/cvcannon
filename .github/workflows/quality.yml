@@ -28,5 +28,5 @@ jobs:
         run: docker compose build
       - name: Exercise container commands
         run: |
-          docker compose run --rm cvcannon make templates
-          docker compose run --rm cvcannon make privacy
+          scripts/docker.sh make templates
+          scripts/docker.sh make privacy
