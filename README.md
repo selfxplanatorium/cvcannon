@@ -12,7 +12,7 @@ The agent supplies judgment and writing. The repository supplies the portable wo
 
 Launch the agent from the cloned repository root so it can discover `AGENTS.md` and work with the project files. When Docker is enabled, the agent still runs on the host. Docker commands mount that same repository at `/workspace`, perform one requested operation, write the results back into the shared folders, and exit.
 
-It is built for turning a long list of opportunities into consistent, review-ready application packs within minutes. Reusable HTML templates, bundled static fonts, headless Chromium, and Poppler checks keep the output polished and ATS readable. Serif headings use the system font stack defined in the templates.
+It is built for turning a long list of opportunities into consistent, review-ready application packs within minutes. Reusable HTML templates, bundled static fonts, headless Chromium, and Poppler checks keep the output polished and ATS readable. The default template bundles both of its families, so the same source renders the same page on Docker, Linux, and macOS.
 
 The included design is a starting point. Templates are intentionally customizable: typography, fonts, colors, spacing, section structure, icons, and other visual choices can be changed. Multiple named CV and cover letter template pairs can be saved and reused.
 
@@ -142,7 +142,7 @@ Automated checks cannot judge factual accuracy, writing quality, visual balance,
 | Path | Contents |
 | --- | --- |
 | `BASE/TEMPLATES/<name>/` | Saved CV and cover letter template pairs |
-| `ASSETS/fonts/` | Lexend fonts and license |
+| `ASSETS/fonts/` | Lexend and Liberation Serif fonts and licenses |
 | `.cvcannon/mode` | Ignored local choice between Docker and native tools |
 | `PROFILE/master-cv.html` | Authoritative candidate CV |
 | `PROFILE/` | Original source files and optional portrait |
@@ -184,4 +184,4 @@ Template names use lowercase letters, digits, and hyphens. Add redistributable s
 
 ## License
 
-cvcannon is available under the [MIT License](LICENSE). Lexend is licensed separately under the SIL Open Font License 1.1; see [third-party notices](THIRD_PARTY_NOTICES.md).
+cvcannon is available under the [MIT License](LICENSE). Lexend and Liberation Serif are licensed separately under the SIL Open Font License 1.1; see [third-party notices](THIRD_PARTY_NOTICES.md).

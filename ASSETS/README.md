@@ -2,8 +2,6 @@
 
 `branding/cvcannon-logo.png` is the project wordmark.
 
-The default template uses the static Lexend font files in `fonts/`.
+The default template uses the static font files in `fonts/`: Lexend for body text and Liberation Serif for headings. Both are bundled, so Docker, Linux, and macOS builds render the same page.
 
-Serif headings use `Georgia`, `Liberation Serif`, `Times New Roman`, or the browser's generic serif fallback. Those system fonts are not stored here.
-
-The Lexend static fonts are distributed under the SIL Open Font License 1.1. See `fonts/OFL.txt`.
+Both families are distributed under the SIL Open Font License 1.1. See `fonts/Lexend-OFL.txt` and `fonts/LiberationSerif-OFL.txt`.

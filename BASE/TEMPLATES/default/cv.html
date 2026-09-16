@@ -20,12 +20,13 @@
        the ceiling. Go much under it and the page looks empty; go over it
        and the content spills onto page 2.
 
-       IMPORTANT: this density was measured WITH the supplied static Lexend.
-       Lexend is noticeably wider than the Liberation Sans / Arial
-       fallback — the same content that fits on one page in the fallback
-       spills onto two in Lexend. So always run the page-count check on
-       the file with the local @font-face files available, never with a
-       fallback font, or you will "verify" a layout that does not exist.
+       IMPORTANT: this density was measured WITH the supplied static
+       Lexend and Liberation Serif. Lexend is noticeably wider than the
+       Liberation Sans / Arial fallback — the same content that fits on
+       one page in the fallback spills onto two in Lexend. So always run
+       the page-count check on the file with the local @font-face files
+       available, never with a fallback font, or you will "verify" a
+       layout that does not exist.
 
        THE THREE HARD RULES
        ----------------------------------------------------------------
@@ -56,8 +57,11 @@
        embed suitable static font data. Chromium embeds them in the PDF.
        Scaffolding adjusts the bundled paths for the master and application.
 
-       This default uses weights 300, 400, 500, and 600. Custom templates
-       may use other families and weights. Do not use a variable webfont.
+       Both families are bundled, so Docker, Linux, and macOS builds
+       render identically. Body text uses Lexend at weights 300, 400,
+       500, and 600. Serif headings use Liberation Serif at 400 and 700.
+       Custom templates may use other families and weights. Do not use a
+       variable webfont.
        =================================================================== -->
     <style>
     /* Static local fonts keep PDF text selectable and make builds reproducible. */
@@ -65,6 +69,8 @@
     @font-face{font-family:'Lexend';font-style:normal;font-weight:400;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-Regular.ttf') format('truetype');}
     @font-face{font-family:'Lexend';font-style:normal;font-weight:500;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-Medium.ttf') format('truetype');}
     @font-face{font-family:'Lexend';font-style:normal;font-weight:600;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-SemiBold.ttf') format('truetype');}
+    @font-face{font-family:'Liberation Serif';font-style:normal;font-weight:400;font-display:swap;src:url('../../../ASSETS/fonts/LiberationSerif-Regular.ttf') format('truetype');}
+    @font-face{font-family:'Liberation Serif';font-style:normal;font-weight:700;font-display:swap;src:url('../../../ASSETS/fonts/LiberationSerif-Bold.ttf') format('truetype');}
   </style>
 
   <!-- Icons are inlined SVG directly in the HTML. They are decorative only: never put
@@ -123,7 +129,7 @@
          4. h1 18pt -> 17pt
        Never go below 7pt: it stops being readable in print. */
     h1, h2, h3 {
-      font-family: Georgia, 'Liberation Serif', 'Times New Roman', serif;
+      font-family: 'Liberation Serif', Georgia, 'Times New Roman', serif;
       font-weight: bold;
       color: #0b3b5c;
     }
@@ -206,7 +212,7 @@
       font-weight: 600;
       font-size: 8.5pt;
       color: #0b3b5c;
-      font-family: Georgia, 'Liberation Serif', serif;
+      font-family: 'Liberation Serif', Georgia, serif;
       margin-top: 0.1rem;
     }
     .item-title { font-weight: bold; color: #0b2b40; }

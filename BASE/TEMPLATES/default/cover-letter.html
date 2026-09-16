@@ -17,7 +17,9 @@
           eyeball it.
        2. ALL TEXT MUST BE SELECTABLE/COPYABLE IN THE PDF
           => static local fonts are embedded by Chromium, never loaded from
-          a CDN. Custom fonts must also be local or embedded.
+          a CDN. Custom fonts must also be local or embedded. Lexend and
+          Liberation Serif are both bundled under ASSETS/fonts/, so this
+          letter renders identically on every platform.
        3. Replace every {{placeholder}}. Lorem ipsum body text is replaced
           by role-specific content of equivalent length: the letter fills
           roughly half to two-thirds of the page. If the real content
@@ -35,6 +37,8 @@
     @font-face{font-family:'Lexend';font-style:normal;font-weight:400;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-Regular.ttf') format('truetype');}
     @font-face{font-family:'Lexend';font-style:normal;font-weight:500;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-Medium.ttf') format('truetype');}
     @font-face{font-family:'Lexend';font-style:normal;font-weight:600;font-display:swap;src:url('../../../ASSETS/fonts/Lexend-SemiBold.ttf') format('truetype');}
+    @font-face{font-family:'Liberation Serif';font-style:normal;font-weight:400;font-display:swap;src:url('../../../ASSETS/fonts/LiberationSerif-Regular.ttf') format('truetype');}
+    @font-face{font-family:'Liberation Serif';font-style:normal;font-weight:700;font-display:swap;src:url('../../../ASSETS/fonts/LiberationSerif-Bold.ttf') format('truetype');}
   </style>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -67,7 +71,7 @@
     }
 
     h1 {
-      font-family: Georgia, 'Liberation Serif', 'Times New Roman', serif;
+      font-family: 'Liberation Serif', Georgia, 'Times New Roman', serif;
       font-size: 18pt;
       font-weight: bold;
       letter-spacing: -0.2px;
@@ -103,7 +107,7 @@
     .meta .recipient strong { font-weight: 500; color: #0b2b40; }
 
     .subject {
-      font-family: Georgia, 'Liberation Serif', serif;
+      font-family: 'Liberation Serif', Georgia, serif;
       font-weight: bold;
       font-size: 10pt;
       color: #0b3b5c;
@@ -114,7 +118,7 @@
 
     .closing { margin-top: 0.9rem; }
     .signature-name {
-      font-family: Georgia, 'Liberation Serif', serif;
+      font-family: 'Liberation Serif', Georgia, serif;
       font-weight: bold;
       color: #0b2b40;
       margin-top: 1.2rem;

@@ -144,6 +144,8 @@ def doctor() -> None:
         TEMPLATES / DEFAULT_TEMPLATE / "cv.html",
         TEMPLATES / DEFAULT_TEMPLATE / "cover-letter.html",
         ROOT / "ASSETS" / "fonts" / "Lexend-Regular.ttf",
+        ROOT / "ASSETS" / "fonts" / "LiberationSerif-Regular.ttf",
+        ROOT / "ASSETS" / "fonts" / "LiberationSerif-Bold.ttf",
     ):
         if not path.is_file():
             problems.append(str(path.relative_to(ROOT)))

@@ -98,7 +98,7 @@ Do not force the user into a schema, require them to rewrite an existing CV, or 
 ## Repository structure
 
 - `BASE/TEMPLATES/<name>/` — named template bundles containing `cv.html` and `cover-letter.html`.
-- `ASSETS/` — Lexend font files and their license.
+- `ASSETS/` — Lexend and Liberation Serif font files and their licenses.
 - `PROFILE/master-cv.html` — authoritative candidate CV used as the base for every application.
 - `PROFILE/` — source files and optional `portrait.png` used to create the master CV.
 - `APPLICATIONS/<slug>/` — ignored role-specific HTML and PDF outputs.

@@ -44,7 +44,7 @@ Search visible document content for `{{...}}` and `[bracketed prompts]`. Replace
 
 Use static local or embedded font files. Do not load fonts from a CDN or use a variable font for PDF export. Confirm that every `@font-face` path resolves from the generated application folder.
 
-The default template bundles Lexend. Its serif headings use the first available system font from `Georgia`, `Liberation Serif`, `Times New Roman`, and the generic `serif` fallback. Custom templates may replace either font stack.
+The default template bundles Lexend for body text and Liberation Serif for headings. Neither depends on an installed system font. Custom templates may replace either font stack.
 
 ## A template is missing from `make templates`
 
