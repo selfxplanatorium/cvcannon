@@ -1,5 +1,17 @@
 # Troubleshooting
 
+## Docker is unavailable
+
+Run `docker info` and `docker compose version`. Start Docker Desktop or the Docker daemon if the first command fails. Install the Docker Compose plugin if the second command fails, then rerun `./docker-setup.sh`.
+
+## Docker-generated files have the wrong owner
+
+Use the documented `make docker-*` targets or `scripts/docker.sh`. The wrapper passes the current host user and group IDs into Compose. Avoid invoking `docker compose run` with a different `user` value. Files created earlier as root may need their ownership corrected once with the host's administrator tools.
+
+## Chromium exits unexpectedly in Docker
+
+Use `compose.yaml` rather than a bare `docker run`. The Compose service allocates a larger shared-memory area for Chromium. Rebuild the image with `make docker-image` after updating Docker files.
+
 ## Doctor says the authoritative CV is missing
 
 Provide an existing CV, a readable document or text file under `PROFILE/`, or career information in chat. Run `make profile`, complete `PROFILE/master-cv.html` from that material, and remove every placeholder.

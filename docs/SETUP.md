@@ -2,7 +2,21 @@
 
 Run all commands from the project root.
 
-## Prerequisites
+cvcannon supports two setup paths. Docker provides the shortest reproducible setup. Native setup uses tools installed directly on the host. Both paths produce the same files and use the same checks.
+
+## Docker setup
+
+Install a current Docker Desktop, or Docker Engine with the Docker Compose plugin. Then run:
+
+```bash
+./docker-setup.sh
+```
+
+The script verifies Docker, builds the image, configures the committed Git hook, lists the available templates, and runs the privacy check. If `PROFILE/master-cv.html` already exists, it also runs the full environment doctor. Otherwise it prints the profile creation steps.
+
+Continue with Docker-prefixed targets such as `make docker-profile`, `make docker-new`, and `make docker-build`. The full workflow and command mapping are in [DOCKER.md](DOCKER.md).
+
+## Native setup
 
 The pipeline uses Python's standard library. PDF rendering and inspection require a Chromium-family browser and Poppler.
 

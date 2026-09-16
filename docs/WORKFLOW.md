@@ -2,6 +2,8 @@
 
 Provide one listing or a batch of listings. cvcannon creates one folder and one complete application pack per role. Each slug may contain lowercase letters, digits, and hyphens, for example `acme-platform-engineer`.
 
+The examples below use native commands. With the optional Docker toolchain, add `docker-` to the target: `make docker-new`, `make docker-build`, and `make docker-check`. See [the Docker guide](DOCKER.md).
+
 ## 1. Provide the listings
 
 Paste the full text of every listing whenever possible. Full text is preferred because it preserves the employer's exact wording, remains available after a listing expires, and avoids errors caused by dynamic or restricted pages.

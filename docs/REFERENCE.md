@@ -2,6 +2,8 @@
 
 Run commands from the project root.
 
+Every document command has a Docker equivalent. See [Docker commands](#docker-commands) or the [Docker guide](DOCKER.md).
+
 ## `make setup`
 
 Configures Git hooks, sets executable bits, and runs `doctor`. It initializes a Git repository when needed.
@@ -41,6 +43,29 @@ Deletes only the generated PDFs and `previews/` directory for one application. S
 ## `make privacy`
 
 Scans files eligible for commit. The pre-commit hook uses `python3 scripts/privacy_check.py --staged` to inspect staged content instead.
+
+## Docker commands
+
+`make docker-setup` runs the guided first-time Docker setup. `make docker-image` rebuilds the image without running setup checks.
+
+The remaining targets mirror the native commands:
+
+| Docker target | Equivalent native target |
+| --- | --- |
+| `make docker-templates` | `make templates` |
+| `make docker-profile [TEMPLATE=name]` | `make profile [TEMPLATE=name]` |
+| `make docker-doctor` | `make doctor` |
+| `make docker-new SLUG=<slug> [TEMPLATE=name]` | `make new ...` |
+| `make docker-build SLUG=<slug>` | `make build ...` |
+| `make docker-check SLUG=<slug>` | `make check ...` |
+| `make docker-privacy` | `make privacy` |
+| `make docker-clean SLUG=<slug>` | `make clean ...` |
+
+For an uncommon command, run it through the wrapper directly:
+
+```bash
+scripts/docker.sh make help
+```
 
 ## Outputs and exit status
 

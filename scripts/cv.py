@@ -251,7 +251,9 @@ def render(html: Path, pdf: Path) -> None:
         "--virtual-time-budget=3000",
         f"--print-to-pdf={pdf.resolve()}",
     ]
-    if hasattr(os, "geteuid") and os.geteuid() == 0:
+    if os.environ.get("CVCANNON_CONTAINER") == "1" or (
+        hasattr(os, "geteuid") and os.geteuid() == 0
+    ):
         command.append("--no-sandbox")
     command.append(html.resolve().as_uri())
     run(command)
@@ -357,6 +359,10 @@ def help_text() -> None:
   make check SLUG=company-role       verify existing PDFs and refresh previews
   make clean SLUG=company-role       remove generated PDFs and previews
   make privacy                       scan Git candidates for personal data
+
+  ./docker-setup.sh                  build and verify the optional Docker toolchain
+  make docker-new SLUG=role          scaffold through Docker
+  make docker-build SLUG=role        render and verify through Docker
 """
     )
 

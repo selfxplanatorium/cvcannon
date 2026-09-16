@@ -1,0 +1,12 @@
+.git
+.gitignore
+.githooks
+.github
+APPLICATIONS/*
+PROFILE/*
+*.pdf
+*.log
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store

@@ -1,0 +1,14 @@
+services:
+  cvcannon:
+    build:
+      context: .
+    image: cvcannon:local
+    working_dir: /workspace
+    user: "${CVCANNON_UID:-1000}:${CVCANNON_GID:-1000}"
+    environment:
+      HOME: /tmp/cvcannon-home
+      CVCANNON_CONTAINER: "1"
+    volumes:
+      - .:/workspace
+    init: true
+    shm_size: "1gb"

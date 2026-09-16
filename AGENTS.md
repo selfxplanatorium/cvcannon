@@ -12,6 +12,10 @@ cvcannon is an agent-operated batch production system for job applications. A us
 
 The user should be able to provide a batch, leave the organization and production work to the agent, and receive finished packs grouped by company and role.
 
+cvcannon is provider agnostic and follows a bring-your-own-harness model. It does not assume Codex, Claude Code, OpenCode, or any other specific agent runtime. Any capable harness may operate the repository by reading this file, editing the HTML sources, and invoking the documented Make targets. Docker contains the deterministic document toolchain only; it does not contain or select the user's agent.
+
+The harness is expected to run with the repository root as its working directory. In Docker mode, continue reading and editing files from that host checkout. `make docker-*` targets mount the checkout at `/workspace` in a disposable container, run one mechanical command, and write outputs back through the bind mount. Do not expect a resident service or agent inside the container.
+
 The first session establishes one complete, authoritative HTML CV at `PROFILE/master-cv.html`. It can be created from an existing CV, arbitrary source documents, or information pasted in chat. Later sessions reuse this master without repeating profile setup. Each application starts as a copy of the master, then changes only inside its own `APPLICATIONS/<slug>/` folder.
 
 ## Agent and script responsibilities
@@ -37,6 +41,8 @@ The repository scripts perform repeatable mechanical work:
 - `make build SLUG=<company-role>` renders and verifies both PDFs;
 - `make check SLUG=<company-role>` rechecks PDFs and refreshes previews; and
 - `make privacy` checks files that could enter Git.
+
+When the user chooses Docker, use the corresponding `docker-` target, such as `make docker-new SLUG=<company-role>` or `make docker-build SLUG=<company-role>`. These commands produce the same files and apply the same checks through the containerized toolchain.
 
 The scripts do not interpret job listings, choose evidence, or write tailored content. The agent must complete those steps after scaffolding.
 

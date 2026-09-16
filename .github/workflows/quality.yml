@@ -19,3 +19,14 @@ jobs:
         run: python -m py_compile scripts/cv.py scripts/privacy_check.py
       - name: Check public files for privacy risks
         run: python scripts/privacy_check.py
+
+  docker-toolchain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker toolchain
+        run: docker compose build
+      - name: Exercise container commands
+        run: |
+          docker compose run --rm cvcannon make templates
+          docker compose run --rm cvcannon make privacy

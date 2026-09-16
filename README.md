@@ -4,6 +4,14 @@
 
 cvcannon accepts several job listings at once and produces a separate tailored CV and cover letter for every role. Paste the complete listing text for the most reliable result, or provide listing links when the text is unavailable. The system organizes each application, selects relevant evidence from the candidate profile, generates the documents, exports the PDFs, and checks their technical quality.
 
+## Bring your own harness
+
+cvcannon is completely provider agnostic. It does not bundle, require, or call a particular AI provider. Open the repository with your preferred agent harness—Codex, Claude Code, OpenCode, or another tool that can read `AGENTS.md` and edit files—and use that agent to interpret listings and tailor the documents.
+
+The agent supplies judgment and writing. The repository supplies the portable workflow, templates, file organization, PDF renderer, and quality checks. You can switch harnesses without migrating your profile, templates, or applications. API credentials are not required by cvcannon itself.
+
+Launch the agent from the cloned repository root so it can discover `AGENTS.md` and work with the project files. When Docker is enabled, the agent still runs on the host. Docker commands mount that same repository at `/workspace`, perform one requested operation, write the results back into the shared folders, and exit.
+
 It is built for turning a long list of opportunities into consistent, review-ready application packs within minutes. Reusable HTML templates, bundled static fonts, headless Chromium, and Poppler checks keep the output polished and ATS readable. Serif headings use the system font stack defined in the templates.
 
 The included design is a starting point. Templates are intentionally customizable: typography, fonts, colors, spacing, section structure, icons, and other visual choices can be changed. Multiple named CV and cover letter template pairs can be saved and reused.
@@ -19,6 +27,30 @@ The included design is a starting point. Templates are intentionally customizabl
 ## Quick start
 
 ### 1. Install the prerequisites
+
+Choose either Docker or a native installation.
+
+#### Docker: fastest setup
+
+Install a current Docker Desktop, or Docker Engine with the Compose plugin, then run:
+
+```bash
+./docker-setup.sh
+```
+
+The script builds the complete toolchain, configures the repository hooks, and checks the container. It then prints the exact next step based on whether an authoritative CV already exists. The agent still runs in your chosen harness on the host; Docker runs the deterministic build tools.
+
+Use the Docker-prefixed commands for the rest of the workflow:
+
+```bash
+make docker-profile
+make docker-new SLUG=acme-platform-engineer
+make docker-build SLUG=acme-platform-engineer
+```
+
+See the [Docker guide](docs/DOCKER.md) for the complete command list and architecture.
+
+#### Native installation
 
 You need:
 
@@ -46,6 +78,8 @@ For manual setup, create the master shell:
 make profile
 ```
 
+With Docker, use `make docker-profile` instead.
+
 Fill it from the supplied source material, remove unused sections and placeholders, then continue.
 
 To start the master CV with another saved template:
@@ -63,6 +97,8 @@ make privacy
 
 `make setup` configures the project and checks the required software and authoritative CV.
 
+Docker users already configured the repository with `./docker-setup.sh`; after completing the master CV, run `make docker-doctor` and `make docker-privacy` here.
+
 ### 4. Provide one or more listings
 
 When working with an agent, paste all listings into the same request. Separate them with headings or blank lines. Complete listing text is preferred; URLs are supported when necessary.
@@ -73,6 +109,8 @@ For direct command-line use, create a folder for each listing:
 make new SLUG=acme-platform-engineer
 make new SLUG=example-data-analyst
 ```
+
+With Docker, use `make docker-new` with the same `SLUG` and optional `TEMPLATE` values.
 
 To use another saved design for one application:
 
@@ -95,6 +133,8 @@ Replace every visible placeholder and all sample prose with supported, role-spec
 ```bash
 make build SLUG=acme-platform-engineer
 ```
+
+With Docker, run `make docker-build SLUG=acme-platform-engineer`.
 
 The build creates and verifies `cv.pdf` and `cover-letter.pdf`, then renders PNG previews. Open both files under `APPLICATIONS/acme-platform-engineer/previews/` and inspect them before sending the PDFs.
 
@@ -146,6 +186,7 @@ Template names use lowercase letters, digits, and hyphens. Add redistributable s
 ## Documentation
 
 - [First-time setup](docs/SETUP.md)
+- [Docker setup and commands](docs/DOCKER.md)
 - [Application workflow](docs/WORKFLOW.md)
 - [Privacy model and safe publishing](docs/PRIVACY.md)
 - [Command reference](docs/REFERENCE.md)
