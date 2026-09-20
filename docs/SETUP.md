@@ -24,13 +24,13 @@ Continue with Docker-prefixed targets such as `make docker-profile`, `make docke
 
 ## Native setup
 
-The pipeline uses Python's standard library. PDF rendering and inspection require a Chromium-family browser and Poppler.
+The pipeline uses Python's standard library. PDF rendering and inspection require a Chromium-family browser and Poppler. Converting a portrait to WebP with `make portrait-convert` additionally requires `cwebp` from the `webp` package; it is optional and only needed for that command. The Docker image already includes it.
 
 ### Debian and Ubuntu
 
 ```bash
 sudo apt update
-sudo apt install git make python3 chromium poppler-utils
+sudo apt install git make python3 chromium poppler-utils webp
 ```
 
 Some Ubuntu releases package Chromium as a Snap. That build may restrict access to files outside its allowed paths. Keep the repository under your home directory or install Google Chrome if local assets fail to load.
@@ -38,13 +38,13 @@ Some Ubuntu releases package Chromium as a Snap. That build may restrict access 
 ### Fedora
 
 ```bash
-sudo dnf install git make python3 chromium poppler-utils
+sudo dnf install git make python3 chromium poppler-utils libwebp-tools
 ```
 
 ### Arch Linux
 
 ```bash
-sudo pacman -S git make python chromium poppler
+sudo pacman -S git make python chromium poppler libwebp
 ```
 
 ### macOS
@@ -52,7 +52,7 @@ sudo pacman -S git make python chromium poppler
 Install Google Chrome from its official installer, then install the command-line dependencies with Homebrew:
 
 ```bash
-brew install git make python poppler
+brew install git make python poppler webp
 ```
 
 The pipeline recognizes Google Chrome in its standard `/Applications` location.
@@ -89,7 +89,9 @@ The command uses the `default` template. Select another saved template with `mak
 
 Use the supplied information to complete `PROFILE/master-cv.html`. Remove sections that do not apply and resolve every placeholder. This file becomes the baseline for all future applications.
 
-Optional: save a portrait as `PROFILE/portrait.png`. Use a real PNG, ideally square or portrait-oriented and at least 400 pixels wide. Keep the portrait element in the master CV when using it; otherwise remove the element.
+Optional: save a portrait as `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`. Use a real image file, ideally square or portrait-oriented and at least 400 pixels wide. WebP is preferred because it keeps the finished PDF smaller; if you supply PNG or JPEG, run `make portrait-convert` (it needs `cwebp` from the `webp` package, or the Docker toolchain) and then point the master CV's portrait `src` at `portrait.webp`. Keep the portrait element in the master CV when using it; otherwise remove the element.
+
+If no portrait is present, the agent asks whether you intended one and records the answer in `.cvcannon/portrait`, so it does not ask again. Supply the file when you want a photo; no action is required when you do not.
 
 ## Configure the clone
 
@@ -119,7 +121,7 @@ make privacy
 git status --short
 ```
 
-Source files, `PROFILE/master-cv.html`, `PROFILE/portrait.png`, and application content must not appear in `git status`. If they do, follow [the privacy guide](PRIVACY.md).
+Source files, `PROFILE/master-cv.html`, any `PROFILE/portrait.*`, and application content must not appear in `git status`. If they do, follow [the privacy guide](PRIVACY.md).
 
 ## Next step
 

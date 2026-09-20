@@ -8,13 +8,17 @@ Every document command has a Docker equivalent. See [Docker commands](#docker-co
 
 With no argument, prints the locally selected execution mode. With `docker` or `native`, saves that mode under the ignored `.cvcannon/` directory. The agent uses this during first-time setup; users do not need to invoke it themselves.
 
+## `bash scripts/portrait.sh [wanted|none]`
+
+With no argument, prints the saved portrait preference. With `wanted` or `none`, records whether the user intends to include a photo, under the ignored `.cvcannon/` directory. The agent uses this so it asks about a missing portrait only once; users do not need to invoke it themselves.
+
 ## `make setup`
 
 Configures Git hooks, sets executable bits, and runs `doctor`. It initializes a Git repository when needed.
 
 ## `make profile`
 
-Creates `PROFILE/master-cv.html` from the `default` CV template and adjusts resource paths for its location. It refuses to overwrite an existing master. Complete the file from an existing CV, supplied documents, or information provided in chat.
+Creates `PROFILE/master-cv.html` from the `default` CV template and adjusts resource paths for its location. It points the portrait `src` at whichever `portrait.webp`, `portrait.png`, or `portrait.jpg` exists, and removes the portrait element when none is present. It refuses to overwrite an existing master. Complete the file from an existing CV, supplied documents, or information provided in chat.
 
 Use `make profile TEMPLATE=<name>` to select another saved template.
 
@@ -24,7 +28,11 @@ Lists complete template bundles found under `BASE/TEMPLATES/`. Each bundle must 
 
 ## `make doctor`
 
-Checks for a supported browser, all required Poppler commands, templates, static fonts, and a complete authoritative CV. A nonzero exit identifies each missing requirement.
+Checks for a supported browser, all required Poppler commands, templates, static fonts, and a complete authoritative CV. It accepts `PROFILE/portrait.webp`, `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`, prefers WebP, and notes when the saved portrait preference should be confirmed. A nonzero exit identifies each missing requirement.
+
+## `make portrait-convert`
+
+Converts the portrait in `PROFILE/` to WebP, which renders the same and keeps the finished PDF smaller. It requires `cwebp` from the `webp` package. If the portrait is already WebP, the command reports that and does nothing. After conversion, point the CV portrait `src` at `portrait.webp` and remove the original if unused.
 
 ## `make new SLUG=<slug>`
 
@@ -61,6 +69,7 @@ The remaining targets mirror the native commands:
 | `make docker-templates` | `make templates` |
 | `make docker-profile [TEMPLATE=name]` | `make profile [TEMPLATE=name]` |
 | `make docker-doctor` | `make doctor` |
+| `make docker-portrait-convert` | `make portrait-convert` |
 | `make docker-new SLUG=<slug> [TEMPLATE=name]` | `make new ...` |
 | `make docker-build SLUG=<slug>` | `make build ...` |
 | `make docker-check SLUG=<slug>` | `make check ...` |

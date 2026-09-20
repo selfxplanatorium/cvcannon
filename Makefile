@@ -1,6 +1,6 @@
-.PHONY: help setup templates profile doctor new build check privacy clean \
+.PHONY: help setup templates profile doctor portrait-convert new build check privacy clean \
 	docker-setup docker-image docker-templates docker-profile docker-doctor \
-	docker-new docker-build docker-check docker-privacy docker-clean
+	docker-portrait-convert docker-new docker-build docker-check docker-privacy docker-clean
 
 PYTHON ?= python3
 
@@ -18,6 +18,9 @@ profile:
 
 doctor:
 	@$(PYTHON) scripts/cv.py doctor
+
+portrait-convert:
+	@$(PYTHON) scripts/cv.py portrait-convert
 
 new:
 	@$(PYTHON) scripts/cv.py new "$(SLUG)" "$(TEMPLATE)"
@@ -48,6 +51,9 @@ docker-profile:
 
 docker-doctor:
 	@scripts/docker.sh make doctor
+
+docker-portrait-convert:
+	@scripts/docker.sh make portrait-convert
 
 docker-new:
 	@scripts/docker.sh make new SLUG="$(SLUG)" TEMPLATE="$(TEMPLATE)"

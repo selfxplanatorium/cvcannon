@@ -92,8 +92,17 @@ After receiving source material:
 2. Run `make profile TEMPLATE=<name>` to create the master shell.
 3. Transfer only supported facts into `PROFILE/master-cv.html`, using the source material and user clarifications.
 4. Remove unused sections and all placeholders.
-5. If `PROFILE/portrait.png` exists and the user wants a photo, keep `src="portrait.png"`. Otherwise remove the portrait `<img>` element.
+5. Handle the portrait (see the portrait rule below).
 6. Run `make doctor` and correct every reported issue.
+
+## Portrait rule
+
+A portrait is optional. Supported files are `PROFILE/portrait.webp`, `PROFILE/portrait.png`, and `PROFILE/portrait.jpg` (or `.jpeg`). Prefer WebP: it renders the same and keeps the finished PDF smaller. When the user supplies PNG or JPEG, tell them WebP shrinks the file and offer `make portrait-convert` to convert it in place.
+
+- If a portrait file exists and the user wants a photo, keep the portrait `<img>` in the master CV with its `src` set to that filename. `make profile` and `make new` set the correct path automatically.
+- If the user does not want a photo, the master CV is photo-free; remove the portrait `<img>`.
+- If no portrait is present and no preference is saved, ask the user whether they intended one before continuing. If yes, ask them to add `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`, then save the choice with `bash scripts/portrait.sh wanted`. If no, save it with `bash scripts/portrait.sh none` and take no further action.
+- The saved preference lives in `.cvcannon/portrait` and is ignored by Git. Do not ask again once it is saved. If the user changes their mind, update the file and the master CV.
 
 Do not force the user into a schema, require them to rewrite an existing CV, or invent missing details. Never force-add files under `PROFILE/` to Git.
 
@@ -102,7 +111,7 @@ Do not force the user into a schema, require them to rewrite an existing CV, or 
 - `BASE/TEMPLATES/<name>/` — named template bundles containing `cv.html` and `cover-letter.html`.
 - `ASSETS/` — Lexend and Liberation Serif font files and their licenses.
 - `PROFILE/master-cv.html` — authoritative candidate CV used as the base for every application.
-- `PROFILE/` — source files and optional `portrait.png` used to create the master CV.
+- `PROFILE/` — source files and an optional `portrait.webp`, `portrait.png`, or `portrait.jpg` used to create the master CV.
 - `APPLICATIONS/<slug>/` — ignored role-specific analysis, HTML, PDF, and preview outputs.
 - `scripts/` — setup, scaffolding, rendering, verification, and privacy checks.
 - `docs/` — workflow, privacy, and troubleshooting documentation.
@@ -152,14 +161,14 @@ Read `docs/WRITING.md` for the complete rules. The non-negotiables:
 7. Record the tailoring strategy and cover-letter plan in `application-notes.md`.
 8. Edit only `APPLICATIONS/<slug>/cv.html`, `cover-letter.html`, and the markdown artifacts for the assigned role. Tailor the CV from the evidence map, then select a small number of the strongest connections for the letter.
 9. Keep every claim supported by the master CV or new facts directly confirmed by the user. Add lasting factual corrections to the master CV before using them in applications.
-10. When the master includes a portrait, application copies must use `../../PROFILE/portrait.png`. Photo-free master CVs remain photo-free.
+10. When the master includes a portrait, application copies must use `../../PROFILE/portrait.<ext>` matching the supplied file (`webp`, `png`, or `jpg`). Photo-free master CVs remain photo-free.
 11. Follow the layout and writing rules in the template comments and `docs/WRITING.md`. Each document must fit on one A4 page and retain selectable text.
 12. Run `make build SLUG=<company-role>` for every application. It rejects incomplete analysis artifacts, applies the writing checks, renders both PDFs, and verifies them. Correct any reported writing problem in the document itself, not only in the report.
 13. Record the validation outcome and final status in `application-notes.md`, then present results grouped by role. Do not claim completion unless every requested pack contains both verified PDFs.
 
 ## Privacy and Git rules
 
-- Never commit source documents, `master-cv.html`, or `portrait.png` from `PROFILE/`; only its existing README may be tracked.
+- Never commit source documents, `master-cv.html`, or any `portrait.*` from `PROFILE/`; only its existing README may be tracked.
 - Never commit anything under `APPLICATIONS/` except its tracked `README.md` and `.gitkeep`.
 - Never put a real name, email, phone number, address, portrait, employment history, job description, application HTML, or generated PDF in tracked files.
 - Run `make privacy` before every commit. The installed pre-commit hook runs the same check.

@@ -1,6 +1,6 @@
 # Docker workflow
 
-Docker is an optional execution environment for cvcannon's deterministic tools. It supplies Python, GNU Make, Git, Chromium, Poppler, and compatible system fonts in one image. The native workflow remains available and produces the same repository layout.
+Docker is an optional execution environment for cvcannon's deterministic tools. It supplies Python, GNU Make, Git, Chromium, Poppler, `cwebp` for portrait conversion, and compatible system fonts in one image. The native workflow remains available and produces the same repository layout.
 
 ## Bring your own harness
 
@@ -89,7 +89,7 @@ To use another saved template:
 make docker-profile TEMPLATE=editorial
 ```
 
-Ask the agent to transfer supported facts into `PROFILE/master-cv.html`, remove unused sections and placeholders, and remove the portrait element when no portrait is wanted. Then run:
+Ask the agent to transfer supported facts into `PROFILE/master-cv.html`, remove unused sections and placeholders, and remove the portrait element when no portrait is wanted. A portrait may be `portrait.webp` (preferred), `portrait.png`, or `portrait.jpg`; convert a PNG or JPEG to WebP inside the container with `make docker-portrait-convert`. Then run:
 
 ```bash
 make docker-doctor
@@ -115,6 +115,7 @@ The repository is bind-mounted at `/workspace`, so generated PDFs and previews a
 | List templates | `make docker-templates` |
 | Create master CV | `make docker-profile [TEMPLATE=name]` |
 | Check the environment and master CV | `make docker-doctor` |
+| Convert the portrait to WebP | `make docker-portrait-convert` |
 | Create an application | `make docker-new SLUG=<slug> [TEMPLATE=name]` |
 | Render and verify PDFs | `make docker-build SLUG=<slug>` |
 | Recheck PDFs and previews | `make docker-check SLUG=<slug>` |

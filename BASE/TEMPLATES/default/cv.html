@@ -272,9 +272,12 @@
          down and are the most common cause of a page-2 spill.
          Keep the contact row to ONE line too: if it wraps, the header's
          height is set by the photo, so the wrap costs nothing until you
-         shrink .profile-pic — fix both together (see those rules). -->
+         shrink .profile-pic — fix both together (see those rules).
+         The portrait may be WebP, PNG, or JPEG. WebP is preferred because
+         it is smaller and keeps the finished PDF smaller. Scaffolding
+         points this src at whichever portrait file exists in PROFILE/. -->
     <header class="header-grid">
-      <img src="../../../PROFILE/portrait.png" alt="Portrait of {{Full Name}}" class="profile-pic">
+      <img src="../../../PROFILE/portrait.webp" alt="Portrait of {{Full Name}}" class="profile-pic">
       <div class="header-text">
         <h1>{{Full Name}}</h1>
         <div class="job-title">[One-line role or professional headline]</div>

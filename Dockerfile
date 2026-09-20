@@ -14,6 +14,7 @@ RUN apt-get update \
         make \
         poppler-utils \
         python3 \
+        webp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

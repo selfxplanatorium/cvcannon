@@ -16,19 +16,19 @@ Use `compose.yaml` rather than a bare `docker run`. The Compose service allocate
 
 Provide an existing CV, a readable document or text file under `PROFILE/`, or career information in chat. Run `make profile`, complete `PROFILE/master-cv.html` from that material, and remove every placeholder.
 
-## Portrait exists but is not a PNG
+## Portrait format is rejected
 
-The script checks the PNG file signature. Export or convert the original image to PNG. Changing the filename extension alone does not convert an image.
+Supported portraits are `portrait.webp`, `portrait.png`, and `portrait.jpg` (or `.jpeg`). The script checks the file signature against the extension, so renaming a file does not convert it. Export or convert the image to a supported format. `make portrait-convert` converts a PNG or JPEG portrait to WebP; it needs `cwebp` from the `webp` package (Debian/Ubuntu `webp`, Fedora `libwebp-tools`, Arch `libwebp`, macOS `brew install webp`) or the Docker toolchain via `make docker-portrait-convert`.
 
 ## Portrait is missing from the PDF
 
-When using a portrait, the application CV must contain:
+When using a portrait, the application CV must contain an `<img>` whose `src` matches the supplied file:
 
 ```html
-<img src="../../PROFILE/portrait.png" alt="..." class="profile-pic">
+<img src="../../PROFILE/portrait.webp" alt="..." class="profile-pic">
 ```
 
-Run `make doctor`, then rebuild. If Chromium is installed as a confined Snap, move the repository under your home directory or use a browser build that can read the repository path.
+Use `portrait.png` or `portrait.jpg` if that is the file you supplied. Run `make doctor`, then rebuild. If Chromium is installed as a confined Snap, move the repository under your home directory or use a browser build that can read the repository path.
 
 If the master CV is intentionally photo-free, remove the portrait `<img>` element. The build supports CVs without a photo.
 

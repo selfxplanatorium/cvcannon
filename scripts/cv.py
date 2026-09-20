@@ -20,6 +20,17 @@ APPLICATIONS = ROOT / "APPLICATIONS"
 TEMPLATES = ROOT / "BASE" / "TEMPLATES"
 DEFAULT_TEMPLATE = "default"
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
+PORTRAIT_STEM = "portrait"
+# Preference order: WebP first because it renders at the same quality in a smaller
+# file, which keeps the finished PDF smaller.
+PORTRAIT_EXTENSIONS = ("webp", "png", "jpg", "jpeg")
+PORTRAIT_PREFERENCE = ROOT / ".cvcannon" / "portrait"
+PORTRAIT_SRC_RE = re.compile(
+    r'src="(?:[^"]*?/)?' + PORTRAIT_STEM + r"\.(?:" + "|".join(PORTRAIT_EXTENSIONS) + r')"'
+)
+PORTRAIT_IMG_RE = re.compile(
+    r"[ \t]*<img\b[^>]*class=[\"'][^\"']*profile-pic[^\"']*[\"'][^>]*>[ \t]*\n?", re.I
+)
 REQUIRED_TOOLS = ("pdfinfo", "pdftotext", "pdffonts", "pdfimages", "pdftoppm")
 DOCUMENTS = (("cv.html", "cv.pdf", 800), ("cover-letter.html", "cover-letter.pdf", 300))
 PENDING = "<!-- cvcannon:pending -->"
@@ -121,11 +132,99 @@ def require_master_cv() -> None:
         )
 
 
-def validate_png(path: Path) -> None:
+def supported_portrait_name(name: str) -> bool:
+    path = Path(name)
+    return path.stem == PORTRAIT_STEM and path.suffix.lower().lstrip(".") in PORTRAIT_EXTENSIONS
+
+
+def validate_portrait(path: Path) -> None:
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
-    if path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
-        fail(f"{path.relative_to(ROOT)} exists but is not a PNG file")
+    extension = path.suffix.lower().lstrip(".")
+    header = path.read_bytes()[:16]
+    if extension == "png" and not header.startswith(b"\x89PNG\r\n\x1a\n"):
+        fail(f"{path.relative_to(ROOT)} exists but is not a PNG file; renaming does not convert it")
+    if extension in {"jpg", "jpeg"} and not header.startswith(b"\xff\xd8\xff"):
+        fail(f"{path.relative_to(ROOT)} exists but is not a JPEG file; renaming does not convert it")
+    if extension == "webp" and not (
+        len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WEBP"
+    ):
+        fail(f"{path.relative_to(ROOT)} exists but is not a WebP file; renaming does not convert it")
+
+
+def portrait_file() -> Path | None:
+    found = [PROFILE / f"{PORTRAIT_STEM}.{ext}" for ext in PORTRAIT_EXTENSIONS]
+    found = [path for path in found if path.is_file()]
+    if not found:
+        return None
+    if len(found) > 1:
+        ignored = ", ".join(path.name for path in found[1:])
+        print(
+            f"WARN: multiple portraits in PROFILE/; using {found[0].name} and ignoring {ignored}. "
+            "Remove the unused portrait or reference the preferred one.",
+            file=sys.stderr,
+        )
+    return found[0]
+
+
+def portrait_name() -> str | None:
+    path = portrait_file()
+    return path.name if path else None
+
+
+def portrait_preference() -> str:
+    if PORTRAIT_PREFERENCE.is_file():
+        value = PORTRAIT_PREFERENCE.read_text().strip()
+        if value in {"wanted", "none"}:
+            return value
+    return "unset"
+
+
+def portrait_img_src(source: str) -> str | None:
+    """Return the src of the profile-pic image, None when no such element exists."""
+    for tag in re.findall(r"<img\b[^>]*>", source, re.I):
+        classes = re.search(r'class=["\']([^"\']*)["\']', tag, re.I)
+        if classes and "profile-pic" in classes.group(1).split():
+            src = re.search(r'src=["\']([^"\']*)["\']', tag, re.I)
+            return src.group(1) if src else ""
+    return None
+
+
+def apply_portrait_src(html: str, prefix: str) -> str:
+    name = portrait_name()
+    if not name:
+        return html
+    return PORTRAIT_SRC_RE.sub(f'src="{prefix}{name}"', html)
+
+
+def remove_portrait_img(html: str) -> str:
+    return PORTRAIT_IMG_RE.sub("", html, count=1)
+
+
+def portrait_note() -> None:
+    chosen = portrait_file()
+    preference = portrait_preference()
+    if chosen:
+        if chosen.suffix.lower() != ".webp":
+            print(
+                f"NOTE: using PROFILE/{chosen.name}. WebP is smaller and preferred; "
+                "converting to portrait.webp shrinks the finished PDF."
+            )
+        if preference == "none":
+            print("NOTE: a portrait exists but the saved preference is 'none'; confirm with the user.")
+        return
+    if preference == "wanted":
+        print(
+            "NOTE: a portrait is wanted but none is in PROFILE/. Ask the user to add "
+            f"{PORTRAIT_STEM}.webp (preferred), {PORTRAIT_STEM}.png, or {PORTRAIT_STEM}.jpg."
+        )
+    elif preference == "unset":
+        print(
+            "NOTE: no portrait found. Ask the user whether they intended one. "
+            "If yes, have them add it to PROFILE/ as portrait.webp (preferred), portrait.png, "
+            "or portrait.jpg, then run `bash scripts/portrait.sh wanted`. "
+            "If no, run `bash scripts/portrait.sh none`."
+        )
 
 
 def validate_slug(value: str) -> str:
@@ -204,7 +303,8 @@ def doctor() -> None:
     if problems:
         fail("missing required software or project files: " + ", ".join(problems))
     require_master_cv()
-    validate_html(MASTER_CV, cv=True, portrait_src="portrait.png")
+    validate_html(MASTER_CV, cv=True, portrait_prefix="")
+    portrait_note()
     print(f"Browser: {browser_path}")
     print("Poppler tools: ready")
     print("Authoritative CV: PROFILE/master-cv.html")
@@ -216,13 +316,41 @@ def create_master(template: str = "") -> None:
     name, bundle = template_bundle(template)
     source = (bundle / "cv.html").read_text()
     source = source.replace("../../../ASSETS/", "../ASSETS/")
-    source = source.replace('src="../../../PROFILE/portrait.png"', 'src="portrait.png"')
+    source = source.replace("../../../PROFILE/", "")
+    source = apply_portrait_src(source, "")
+    if portrait_file() is None:
+        source = remove_portrait_img(source)
     source = source.replace(
         "<head>", f'<head>\n  <meta name="cvcannon-template" content="{name}">', 1
     )
     MASTER_CV.write_text(source)
     print(f"Created PROFILE/master-cv.html from template `{name}`")
-    print("Fill it from the supplied CV, files, or chat. Remove the portrait element if no photo is wanted.")
+    if portrait_name():
+        print(f"Using PROFILE/{portrait_name()} as the portrait.")
+    else:
+        print("No portrait found; the master CV is photo-free.")
+    print("Fill it from the supplied CV, files, or chat.")
+
+
+def convert_portrait() -> None:
+    chosen = portrait_file()
+    if chosen is None:
+        formats = ", ".join(f"{PORTRAIT_STEM}.{ext}" for ext in PORTRAIT_EXTENSIONS)
+        fail(f"no portrait found in PROFILE/; add one of {formats} first")
+    if chosen.suffix.lower() == ".webp":
+        print(f"PROFILE/{chosen.name} is already WebP; nothing to convert.")
+        return
+    converter = tool("cwebp")
+    if not converter:
+        fail("cwebp is required to convert the portrait to WebP; install the `webp` package")
+    target = PROFILE / f"{PORTRAIT_STEM}.webp"
+    run([converter, "-quiet", "-q", "90", str(chosen), "-o", str(target)])
+    validate_portrait(target)
+    print(f"Converted PROFILE/{chosen.name} to PROFILE/{target.name}")
+    print(
+        "Update the CV portrait src to \"portrait.webp\" in the master and "
+        "\"../../PROFILE/portrait.webp\" in applications, then remove the original if unused."
+    )
 
 
 def analysis_scaffolds(slug: str) -> dict[str, str]:
@@ -303,7 +431,7 @@ def analysis_scaffolds(slug: str) -> dict[str, str]:
 
 def new(slug: str, template: str = "") -> None:
     require_master_cv()
-    validate_html(MASTER_CV, cv=True, portrait_src="portrait.png")
+    validate_html(MASTER_CV, cv=True, portrait_prefix="")
     name, bundle = template_bundle(template or master_template_name())
     target = app_dir(slug)
     if target.exists():
@@ -313,10 +441,11 @@ def new(slug: str, template: str = "") -> None:
         cv_source = (bundle / "cv.html").read_text()
         cv_source = cv_source.replace("../../../ASSETS/", "../../ASSETS/")
         cv_source = cv_source.replace("../../../PROFILE/", "../../PROFILE/")
+        cv_source = apply_portrait_src(cv_source, "../../PROFILE/")
     else:
         cv_source = MASTER_CV.read_text()
         cv_source = cv_source.replace("../ASSETS/", "../../ASSETS/")
-        cv_source = cv_source.replace('src="portrait.png"', 'src="../../PROFILE/portrait.png"')
+        cv_source = apply_portrait_src(cv_source, "../../PROFILE/")
     (target / "cv.html").write_text(cv_source)
     cover_source = (bundle / "cover-letter.html").read_text()
     cover_source = cover_source.replace("../../../ASSETS/", "../../ASSETS/")
@@ -336,7 +465,7 @@ def visible_text(path: Path) -> str:
     return " ".join(" ".join(parser.parts).split())
 
 
-def validate_html(path: Path, *, cv: bool, portrait_src: str = "../../PROFILE/portrait.png") -> None:
+def validate_html(path: Path, *, cv: bool, portrait_prefix: str = "../../PROFILE/") -> None:
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
     source = path.read_text()
@@ -359,13 +488,34 @@ def validate_html(path: Path, *, cv: bool, portrait_src: str = "../../PROFILE/po
     if remote_resource:
         fail(f"remote runtime dependency found in {path.relative_to(ROOT)}")
     if cv:
-        has_portrait = 'class="profile-pic"' in source
-        has_file_portrait = f'src="{portrait_src}"' in source
-        has_embedded_portrait = re.search(r'src=["\']data:image/', source, re.I)
-        if has_portrait and not (has_file_portrait or has_embedded_portrait):
-            fail(f'CV portrait must use src="{portrait_src}" or an embedded image')
-        if has_file_portrait:
-            validate_png(PROFILE / "portrait.png")
+        src = portrait_img_src(source)
+        if src is not None and not src.lower().startswith("data:image/"):
+            name = Path(src).name
+            expected = f"{portrait_prefix}{name}"
+            if not supported_portrait_name(name) or src != expected:
+                formats = ", ".join(f"{PORTRAIT_STEM}.{ext}" for ext in PORTRAIT_EXTENSIONS)
+                fail(f'CV portrait must use src="{portrait_prefix}{PORTRAIT_STEM}.<ext>" ({formats}) or an embedded image')
+            path = PROFILE / name
+            if not path.is_file():
+                chosen = portrait_file()
+                if chosen:
+                    fail(
+                        f"CV references {name}, but PROFILE/ contains {chosen.name}; "
+                        f'use src="{portrait_prefix}{chosen.name}"'
+                    )
+                formats = ", ".join(f"{PORTRAIT_STEM}.{ext}" for ext in PORTRAIT_EXTENSIONS)
+                fail(
+                    f"CV shows a portrait but PROFILE/{name} is missing. Add one of {formats} "
+                    "(WebP preferred) or remove the profile-pic <img>."
+                )
+            validate_portrait(path)
+            preferred = portrait_file()
+            if preferred and preferred.name != name:
+                print(
+                    f"WARN: PROFILE/{preferred.name} is available and preferred; "
+                    "WebP is smaller and shrinks the finished PDF.",
+                    file=sys.stderr,
+                )
 
 
 def phrase_hits(text: str, phrases: tuple[str, ...]) -> list[str]:
@@ -518,7 +668,7 @@ def check(slug: str) -> None:
     for html_name, pdf_name, min_chars in DOCUMENTS:
         pdf = target / pdf_name
         html = target / html_name
-        require_image = html_name == "cv.html" and 'class="profile-pic"' in html.read_text()
+        require_image = html_name == "cv.html" and portrait_img_src(html.read_text()) is not None
         verify_pdf(pdf, min_chars=min_chars, require_image=require_image)
         run([
             "pdftoppm", "-png", "-singlefile", "-r", "144", str(pdf),
@@ -559,6 +709,7 @@ def help_text() -> None:
   make templates                     list saved template bundles
   make profile [TEMPLATE=name]       create the authoritative CV with a template
   make doctor                        check tools and the authoritative CV
+  make portrait-convert              convert the portrait to WebP to shrink the PDF
   make new SLUG=role [TEMPLATE=name] scaffold an application, optionally with another template
   make build SLUG=company-role       render, verify, and create preview PNGs
   make check SLUG=company-role       verify existing PDFs and refresh previews
@@ -581,6 +732,7 @@ def main(argv: list[str]) -> None:
         "templates": list_templates,
         "profile": lambda: create_master(slug),
         "doctor": doctor,
+        "portrait-convert": convert_portrait,
         "new": lambda: new(slug, template),
         "build": lambda: build(slug),
         "check": lambda: check(slug),

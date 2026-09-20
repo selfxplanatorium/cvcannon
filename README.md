@@ -58,7 +58,7 @@ Use whichever format is already available:
 - add a PDF, DOCX, HTML, Markdown, or text file containing career information; or
 - paste career information directly into chat when working with an agent.
 
-The agent creates `PROFILE/master-cv.html` from the supplied material. This becomes the authoritative CV used in every later session. A portrait is optional; save it as `PROFILE/portrait.png` when wanted.
+The agent creates `PROFILE/master-cv.html` from the supplied material. This becomes the authoritative CV used in every later session. A portrait is optional; save it as `PROFILE/portrait.webp`, `PROFILE/portrait.png`, or `PROFILE/portrait.jpg` when wanted. WebP is preferred because it keeps the finished PDF smaller; `make portrait-convert` converts a PNG or JPEG portrait in place. If no portrait is present, the agent asks whether one was intended and records the answer locally.
 
 The agent creates the master shell using the selected execution mode. The underlying native command is:
 
@@ -137,7 +137,7 @@ The build creates and verifies `cv.pdf` and `cover-letter.pdf`, then renders PNG
 - static embedded fonts with no Type 3 text;
 - meaningful selectable text;
 - no unresolved visible placeholders or Lorem Ipsum;
-- an embedded portrait when the master CV uses one;
+- an embedded portrait when the master CV uses one, in WebP, PNG, or JPEG;
 - preview images for visual review.
 
 Automated checks cannot judge factual accuracy, writing quality, visual balance, or whether the contact row wrapped. Human review remains required.
@@ -150,7 +150,7 @@ Automated checks cannot judge factual accuracy, writing quality, visual balance,
 | `ASSETS/fonts/` | Lexend and Liberation Serif fonts and licenses |
 | `.cvcannon/mode` | Ignored local choice between Docker and native tools |
 | `PROFILE/master-cv.html` | Authoritative candidate CV |
-| `PROFILE/` | Original source files and optional portrait |
+| `PROFILE/` | Original source files and an optional portrait (`portrait.webp`, `portrait.png`, or `portrait.jpg`) |
 | `APPLICATIONS/` | Role-specific sources, PDFs, and previews |
 | `scripts/` | Setup, generation, rendering, and verification commands |
 | `docs/` | Setup, workflow, privacy, and troubleshooting guides |
