@@ -26,8 +26,10 @@ The agent performs the judgment-heavy work:
 - retrieve listings when the user supplies links;
 - separate and organize batches of listings;
 - identify responsibilities, required skills, preferred skills, keywords, and employer priorities;
+- record a structured job analysis and a requirement-to-evidence map before writing;
 - select, reorder, and rewrite supported evidence for each role;
 - write a role-specific profile and cover letter;
+- record tailoring decisions and validation results in the application notes;
 - keep claims factual and dates, titles, credentials, metrics, and proficiency levels exact;
 - inspect the generated previews and correct layout problems; and
 - present completed outputs grouped by role.
@@ -36,15 +38,15 @@ The repository scripts perform repeatable mechanical work:
 
 - `make templates` lists saved template bundles;
 - `make profile TEMPLATE=<name>` creates the initial master CV shell from a selected template;
-- `make new SLUG=<company-role>` scaffolds an application from the master CV;
+- `make new SLUG=<company-role>` scaffolds an application from the master CV and creates the job analysis, evidence map, and application notes;
 - `make new SLUG=<company-role> TEMPLATE=<name>` scaffolds an application with another saved design;
-- `make build SLUG=<company-role>` renders and verifies both PDFs;
+- `make build SLUG=<company-role>` renders and verifies both PDFs, rejects incomplete analysis artifacts, and applies the writing checks;
 - `make check SLUG=<company-role>` rechecks PDFs and refreshes previews; and
 - `make privacy` checks files that could enter Git.
 
 When the user chooses Docker, use the corresponding `docker-` target, such as `make docker-new SLUG=<company-role>` or `make docker-build SLUG=<company-role>`. These commands produce the same files and apply the same checks through the containerized toolchain.
 
-The scripts do not interpret job listings, choose evidence, or write tailored content. The agent must complete those steps after scaffolding.
+The scripts do not interpret job listings, choose evidence, or write tailored content. The agent must complete those steps after scaffolding. The scripts scaffold the analysis artifacts, reject them while they are still empty, and enforce a short list of banned writing patterns; they never generate prose.
 
 ## First-time execution setup
 
@@ -101,21 +103,59 @@ Do not force the user into a schema, require them to rewrite an existing CV, or 
 - `ASSETS/` — Lexend and Liberation Serif font files and their licenses.
 - `PROFILE/master-cv.html` — authoritative candidate CV used as the base for every application.
 - `PROFILE/` — source files and optional `portrait.png` used to create the master CV.
-- `APPLICATIONS/<slug>/` — ignored role-specific HTML and PDF outputs.
+- `APPLICATIONS/<slug>/` — ignored role-specific analysis, HTML, PDF, and preview outputs.
 - `scripts/` — setup, scaffolding, rendering, verification, and privacy checks.
 - `docs/` — workflow, privacy, and troubleshooting documentation.
+
+## Application writing pipeline
+
+Both documents are generated from one factual model. Do not treat CV tailoring and
+cover-letter writing as independent creative prompts.
+
+```text
+job listing -> structured job analysis -> candidate evidence matching -> tailoring strategy
+-> tailored CV -> CV validation -> cover-letter argument selection -> company/context research
+-> cover letter -> final factual and style validation -> saved application pack
+```
+
+Read `docs/WRITING.md` for the complete rules. The non-negotiables:
+
+- `PROFILE/master-cv.html` is the source of truth. Never modify the master for a single
+  job; generate each application-specific version from it.
+- Tailoring selects, reorders, emphasises, and accurately reframes real experience. It
+  never manufactures a better candidate.
+- Every meaningful claim in either document traces through the evidence map to the master
+  CV, documented project history, or a fact the user confirmed.
+- Acceptable: reordering true information, using accurate industry terminology, phrasing
+  vague accomplishments more clearly, selecting different verified bullets, and
+  translating genuinely equivalent concepts into the employer's vocabulary.
+- Unacceptable: adding skills, altering metrics, inventing achievements or
+  responsibilities, claiming titles or credentials never held, converting adjacent
+  experience into direct experience, or implying unsupported proficiency. This rule has
+  priority over ATS optimisation.
+- Preserve the candidate's established positioning. Do not relabel automation,
+  infrastructure, integration, troubleshooting, or systems-operations work as software
+  engineering merely because a listing mentions programming.
+- Write bullets as action + system or problem + context + result when the evidence
+  supports it, without inventing metrics.
+- Apply the shared anti-AI style pass to both documents. `make build` rejects banned
+  buzzwords and cover-letter clichés and warns on softer judgment words.
 
 ## Application workflow
 
 1. Accept one or more job listings in the same request. Prefer complete pasted text. Accept listing URLs when text is unavailable and retrieve the current listing before writing.
-2. Identify each distinct role and create a lowercase, hyphenated `<company-role>` slug. Keep the supplied listing text or retrieved source in that application's `job-description.md`.
-3. Read `PROFILE/master-cv.html` as the authoritative candidate source, then evaluate each role independently.
-4. Run `make new SLUG=<company-role>` for every listing. Add `TEMPLATE=<name>` when the user requests a saved design other than the master CV's design. Multiple applications should be created concurrently when possible.
-5. Edit only `APPLICATIONS/<slug>/cv.html`, `cover-letter.html`, and `job-description.md` for the assigned role.
-6. Keep every claim supported by the master CV or new facts directly confirmed by the user. Add lasting factual corrections to the master CV before using them in applications.
-7. When the master includes a portrait, application copies must use `../../PROFILE/portrait.png`. Photo-free master CVs remain photo-free.
-8. Follow the layout and writing rules in the template comments. Each document must fit on one A4 page and retain selectable text.
-9. Run `make build SLUG=<company-role>` for every application. Present results grouped by role. Do not claim completion unless every requested pack contains both verified PDFs.
+2. Identify each distinct role and create a lowercase, hyphenated `<company-role>` slug.
+3. Run `make new SLUG=<company-role>` for every listing. Add `TEMPLATE=<name>` when the user requests a saved design other than the master CV's design. Multiple applications should be created concurrently when possible.
+4. Save the supplied or retrieved listing text in that application's `job-description.md` and remove the pending marker.
+5. Read `PROFILE/master-cv.html` as the authoritative candidate source, then fill `job-analysis.md`: primary responsibilities, employer priorities, required and preferred skills, employer terminology, and company context.
+6. Fill `evidence-map.md` before writing: map each requirement to matching evidence, its source, an exact/adjacent/gap match, the terminology to use, and whether it belongs in the CV or the cover letter.
+7. Record the tailoring strategy and cover-letter plan in `application-notes.md`.
+8. Edit only `APPLICATIONS/<slug>/cv.html`, `cover-letter.html`, and the markdown artifacts for the assigned role. Tailor the CV from the evidence map, then select a small number of the strongest connections for the letter.
+9. Keep every claim supported by the master CV or new facts directly confirmed by the user. Add lasting factual corrections to the master CV before using them in applications.
+10. When the master includes a portrait, application copies must use `../../PROFILE/portrait.png`. Photo-free master CVs remain photo-free.
+11. Follow the layout and writing rules in the template comments and `docs/WRITING.md`. Each document must fit on one A4 page and retain selectable text.
+12. Run `make build SLUG=<company-role>` for every application. It rejects incomplete analysis artifacts, applies the writing checks, renders both PDFs, and verifies them. Correct any reported writing problem in the document itself, not only in the report.
+13. Record the validation outcome and final status in `application-notes.md`, then present results grouped by role. Do not claim completion unless every requested pack contains both verified PDFs.
 
 ## Privacy and Git rules
 

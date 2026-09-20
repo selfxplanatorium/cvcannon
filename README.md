@@ -20,8 +20,8 @@ The included design is a starting point. Templates are intentionally customizabl
 
 1. Provide multiple job listings in one request. Full pasted text is preferred because it preserves the exact requirements even if a listing changes or disappears.
 2. On first use, cvcannon turns an existing CV, a document, a text file, or information pasted in chat into one authoritative HTML CV.
-3. cvcannon creates one organized folder per role and tailors a copy of the authoritative CV with the most relevant experience, skills, and terminology.
-4. Each application receives a matching cover letter, two verified PDFs, and visual previews.
+3. cvcannon creates one organized folder per role, records a structured job analysis and a requirement-to-evidence map, and tailors a copy of the authoritative CV with the most relevant experience, skills, and terminology.
+4. Each application receives a matching cover letter, two verified PDFs, and visual previews. The build rejects incomplete analysis artifacts and runs a shared factual and anti-AI writing check on both documents.
 5. Review the finished application packs and submit the ones you want.
 
 ## Quick start
@@ -108,13 +108,16 @@ make new SLUG=acme-platform-engineer TEMPLATE=editorial
 
 Without `TEMPLATE`, the completed master CV is copied. With `TEMPLATE`, the selected template shell is used and the agent populates it from the master CV before tailoring it.
 
-Edit:
+Edit the application files:
 
+- `APPLICATIONS/acme-platform-engineer/job-description.md`
+- `APPLICATIONS/acme-platform-engineer/job-analysis.md`
+- `APPLICATIONS/acme-platform-engineer/evidence-map.md`
+- `APPLICATIONS/acme-platform-engineer/application-notes.md`
 - `APPLICATIONS/acme-platform-engineer/cv.html`
 - `APPLICATIONS/acme-platform-engineer/cover-letter.html`
-- `APPLICATIONS/acme-platform-engineer/job-description.md`
 
-Replace every visible placeholder and all sample prose with supported, role-specific content.
+Complete the analysis artifacts first, then replace every visible placeholder and all sample prose with supported, role-specific content. The full writing rules are in [the writing pipeline guide](docs/WRITING.md).
 
 ### 5. Build and review
 
@@ -128,6 +131,8 @@ The build creates and verifies `cv.pdf` and `cover-letter.pdf`, then renders PNG
 
 ## What the build verifies
 
+- complete analysis artifacts, with no scaffold markers left;
+- the shared writing checks: banned buzzwords and cover-letter clichés, em dashes, and cover-letter length;
 - exactly one A4 page per document;
 - static embedded fonts with no Type 3 text;
 - meaningful selectable text;
@@ -177,6 +182,7 @@ Template names use lowercase letters, digits, and hyphens. Add redistributable s
 - [First-time setup](docs/SETUP.md)
 - [Docker setup and commands](docs/DOCKER.md)
 - [Application workflow](docs/WORKFLOW.md)
+- [Application writing pipeline](docs/WRITING.md)
 - [Privacy model and safe publishing](docs/PRIVACY.md)
 - [Command reference](docs/REFERENCE.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

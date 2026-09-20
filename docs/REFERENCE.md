@@ -28,17 +28,19 @@ Checks for a supported browser, all required Poppler commands, templates, static
 
 ## `make new SLUG=<slug>`
 
-Copies `PROFILE/master-cv.html` into `APPLICATIONS/<slug>/cv.html`, adjusts its relative asset paths, copies the generic cover letter template, and creates an empty `job-description.md`. It does not analyze or tailor content. The slug must match `[a-z0-9][a-z0-9-]*`. Existing folders are never overwritten.
+Copies `PROFILE/master-cv.html` into `APPLICATIONS/<slug>/cv.html`, adjusts its relative asset paths, copies the generic cover letter template, and scaffolds `job-description.md`, `job-analysis.md`, `evidence-map.md`, and `application-notes.md`. Each artifact carries a `cvcannon:pending` marker until the agent completes it. The command does not analyze or tailor content. The slug must match `[a-z0-9][a-z0-9-]*`. Existing folders are never overwritten.
 
 Use `make new SLUG=<slug> TEMPLATE=<name>` to scaffold both documents from another saved bundle. The resulting CV is a blank template that the agent must populate from the authoritative CV.
 
+The writing stages that fill these artifacts are documented in [WRITING.md](WRITING.md).
+
 ## `make build SLUG=<slug>`
 
-Runs `doctor`, checks source HTML, renders `cv.pdf` and `cover-letter.pdf`, runs all PDF checks, and creates preview PNGs. The command exits nonzero on the first failed gate.
+Runs `doctor`, rejects incomplete analysis artifacts, applies the writing checks to both documents, checks source HTML, renders `cv.pdf` and `cover-letter.pdf`, runs all PDF checks, and creates preview PNGs. The command exits nonzero on the first failed gate.
 
 ## `make check SLUG=<slug>`
 
-Verifies existing PDFs and refreshes previews without rendering the HTML again.
+Verifies existing PDFs and refreshes previews without rendering the HTML again. It also re-runs the analysis-artifact and writing checks.
 
 ## `make clean SLUG=<slug>`
 

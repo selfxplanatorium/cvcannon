@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -21,6 +22,28 @@ DEFAULT_TEMPLATE = "default"
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
 REQUIRED_TOOLS = ("pdfinfo", "pdftotext", "pdffonts", "pdfimages", "pdftoppm")
 DOCUMENTS = (("cv.html", "cv.pdf", 800), ("cover-letter.html", "cover-letter.pdf", 300))
+PENDING = "<!-- cvcannon:pending -->"
+ANALYSIS_FILES = ("job-description.md", "job-analysis.md", "evidence-map.md", "application-notes.md")
+
+# Phrases and cliches removed by the shared writing style pass. The build fails on these.
+BANNED_EVERYWHERE = (
+    "results-driven", "results-oriented", "dynamic professional", "highly motivated",
+    "detail-oriented", "team player", "self-starter", "proven track record",
+    "leveraged", "spearheaded", "synergy", "cutting-edge", "world-class",
+    "best-in-class", "game changer", "game-changer", "thought leader", "rockstar",
+    "ninja", "guru", "passionate",
+)
+BANNED_IN_COVER_LETTER = (
+    "i am writing to apply", "i saw your posting", "i saw your job posting",
+    "saw your posting on linkedin", "perfect candidate", "to whom it may concern",
+    "please find my resume attached", "please find attached my resume",
+    "please find my cv attached", "i am available for an interview at your convenience",
+    "i look forward to hearing from you", "i have always admired", "your innovative company",
+)
+SOFT_FLAGS = (
+    "innovative", "strategic", "exceptional", "dynamic", "visionary", "seamless",
+    "state-of-the-art", "world-leading", "unparalleled",
+)
 
 
 class VisibleText(HTMLParser):
@@ -39,6 +62,35 @@ class VisibleText(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if not self.hidden:
+            self.parts.append(data)
+
+
+class ParagraphText(HTMLParser):
+    """Collect the text of every element carrying one CSS class."""
+
+    def __init__(self, class_name: str) -> None:
+        super().__init__()
+        self.class_name = class_name
+        self.stack: list[str] = []
+        self.capture_at: int | None = None
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        classes = ""
+        if tag == "p":
+            classes = next((value or "" for key, value in attrs if key == "class"), "")
+        if self.capture_at is None and self.class_name in classes.split():
+            self.capture_at = len(self.stack)
+        self.stack.append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.stack:
+            self.stack.pop()
+        if self.capture_at is not None and len(self.stack) <= self.capture_at:
+            self.capture_at = None
+
+    def handle_data(self, data: str) -> None:
+        if self.capture_at is not None:
             self.parts.append(data)
 
 
@@ -173,6 +225,82 @@ def create_master(template: str = "") -> None:
     print("Fill it from the supplied CV, files, or chat. Remove the portrait element if no photo is wanted.")
 
 
+def analysis_scaffolds(slug: str) -> dict[str, str]:
+    return {
+        "job-description.md": (
+            f"{PENDING}\n# Job listing\n\n"
+            "Paste the complete listing text here (preferred). If only a link was supplied, "
+            "record the URL, retrieval date, and retrieved listing text.\n"
+        ),
+        "job-analysis.md": (
+            f"{PENDING}\n# Job analysis — {slug}\n\n"
+            "<!-- Fill this from job-description.md before writing any document. "
+            "Remove the pending marker on the first line when complete. -->\n\n"
+            "## Target\n"
+            "- Company:\n- Role title:\n- Location / work model:\n"
+            "- Source (apply URL or channel):\n- Listing saved in: job-description.md\n\n"
+            "## Primary responsibilities\n1.\n2.\n3.\n\n"
+            "## Employer priorities\n1.\n2.\n\n"
+            "## Requirements\n\n"
+            "| Requirement | Required or preferred | Importance | Employer terminology |\n"
+            "| --- | --- | --- | --- |\n|  |  |  |  |\n\n"
+            "## ATS keywords\n- \n\n"
+            "## Company context\n"
+            "- Product or service:\n- Operating model:\n- Tone (startup / enterprise / technical):\n"
+            "- Concrete, verifiable details worth referencing:\n\n"
+            "## Recipient\n- Name or greeting target:\n- Known contact or referral:\n"
+        ),
+        "evidence-map.md": (
+            f"{PENDING}\n# Evidence map — {slug}\n\n"
+            "<!-- One row per requirement. Ground every claim here before it enters the CV or "
+            "cover letter. Match is exact, adjacent, or gap. Evidence source is "
+            "PROFILE/master-cv.html or a user-confirmed fact. Remove the pending marker when "
+            "complete. -->\n\n"
+            "| # | Requirement / priority | Importance | Matching candidate evidence | "
+            "Evidence source | Match | Terminology to use | CV? | Letter? |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+            "| 1 |  |  |  |  |  |  |  |  |\n\n"
+            "## Coverage summary\n"
+            "- Major requirements covered:\n- Gaps remaining:\n"
+            "- Strongest connection (lead the cover letter with this):\n"
+            "- Second argument:\n- Additional value:\n"
+            "- Material gap to address (only if it genuinely needs explaining):\n"
+        ),
+        "application-notes.md": (
+            f"{PENDING}\n# Application notes — {slug}\n\n"
+            f"Generated: {date.today().isoformat()}\nStatus: draft\n\n"
+            "<!-- Record tailoring decisions and the cover-letter plan, then remove the pending "
+            "marker on the first line. -->\n\n"
+            "## Tailoring decisions\n\n"
+            "### Target\n- Role:\n- Company:\n\n"
+            "### Summary\n- Was:\n- Now:\n- Reason:\n\n"
+            "### Skills\n- New priority order:\n- Exact terminology introduced:\n"
+            "- Removed or de-emphasised:\n\n"
+            "### Experience\nFor each role changed:\n"
+            "- Role:\n"
+            "  - Bullets promoted:\n  - Bullets demoted or removed:\n  - Wording changes:\n"
+            "  - Vacancy terminology integrated:\n  - Evidence source:\n\n"
+            "### Overall\n- Major requirements covered:\n- Gaps remaining:\n- Sections modified:\n\n"
+            "## Cover-letter plan\n"
+            "- Opening strategy (company knowledge | mutual connection | problem/role | "
+            "achievement | industry insight):\n"
+            "- Body 1 direct match (their need + my evidence + result):\n"
+            "- Body 2 (additional value or gap handling):\n"
+            "- Specific company detail used:\n- Tone:\n- Target length (250–400 words):\n\n"
+            "## Validation record\n"
+            "- [ ] Every claim is true and traceable to evidence-map.md\n"
+            "- [ ] No skills added, metrics altered, achievements invented, or seniority overstated\n"
+            "- [ ] Adjacent experience stated honestly; gaps distinguished from direct experience\n"
+            "- [ ] Strongest relevant bullets placed prominently\n"
+            "- [ ] Keywords present naturally, no stuffing\n"
+            "- [ ] Cover letter adds reasoning beyond the CV\n"
+            "- [ ] Tone: calm, technically literate, concise, credible\n"
+            "- [ ] Both documents pass make build\n"
+            "- Notes:\n"
+        ),
+    }
+
+
 def new(slug: str, template: str = "") -> None:
     require_master_cv()
     validate_html(MASTER_CV, cv=True, portrait_src="portrait.png")
@@ -193,12 +321,12 @@ def new(slug: str, template: str = "") -> None:
     cover_source = (bundle / "cover-letter.html").read_text()
     cover_source = cover_source.replace("../../../ASSETS/", "../../ASSETS/")
     (target / "cover-letter.html").write_text(cover_source)
-    (target / "job-description.md").write_text(
-        "# Job listing\n\nPaste the complete listing text here (preferred). If only a link was supplied, record the URL, retrieval date, and retrieved listing text.\n"
-    )
+    for filename, content in analysis_scaffolds(slug).items():
+        (target / filename).write_text(content)
     print(f"Created {target.relative_to(ROOT)} with template `{name}`")
     if template:
         print("Populate the selected CV template from PROFILE/master-cv.html, then tailor it for the role.")
+    print("Fill job-description.md, job-analysis.md, and evidence-map.md before writing.")
     print("Edit cv.html and cover-letter.html, then run: " + f"make build SLUG={slug}")
 
 
@@ -238,6 +366,80 @@ def validate_html(path: Path, *, cv: bool, portrait_src: str = "../../PROFILE/po
             fail(f'CV portrait must use src="{portrait_src}" or an embedded image')
         if has_file_portrait:
             validate_png(PROFILE / "portrait.png")
+
+
+def phrase_hits(text: str, phrases: tuple[str, ...]) -> list[str]:
+    lowered = text.lower()
+    return [
+        phrase
+        for phrase in phrases
+        if re.search(r"\b" + re.escape(phrase) + r"\b", lowered)
+    ]
+
+
+def cover_letter_body_words(path: Path) -> int | None:
+    parser = ParagraphText("body-text")
+    parser.feed(path.read_text())
+    text = " ".join(" ".join(parser.parts).split())
+    if not text:
+        return None
+    return len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’–-]*", text))
+
+
+def writing_check(target: Path) -> None:
+    problems: list[str] = []
+    warnings: list[str] = []
+    cv_text = visible_text(target / "cv.html")
+    letter_text = visible_text(target / "cover-letter.html")
+
+    for phrase in phrase_hits(cv_text, BANNED_EVERYWHERE):
+        problems.append(f"cv.html: remove the phrase '{phrase}'")
+    for phrase in phrase_hits(letter_text, BANNED_EVERYWHERE + BANNED_IN_COVER_LETTER):
+        problems.append(f"cover-letter.html: remove the phrase '{phrase}'")
+    for phrase in phrase_hits(cv_text, SOFT_FLAGS):
+        warnings.append(f"cv.html: review '{phrase}' for unsupported self-praise")
+    for phrase in phrase_hits(letter_text, SOFT_FLAGS):
+        warnings.append(f"cover-letter.html: review '{phrase}' for unsupported self-praise")
+
+    if "—" in cv_text:
+        problems.append("cv.html: remove em dashes; use an en dash only for ranges")
+    if "—" in letter_text:
+        warnings.append("cover-letter.html: em dashes are discouraged; prefer commas or parentheses")
+
+    words = cover_letter_body_words(target / "cover-letter.html")
+    if words is None:
+        warnings.append("cover-letter.html: could not measure body length; keep it to about 250–400 words")
+    else:
+        if not 220 <= words <= 440:
+            problems.append(f"cover-letter.html: {words} body words; keep it to roughly 250–400")
+        elif not 250 <= words <= 400:
+            warnings.append(f"cover-letter.html: {words} body words; the target range is 250–400")
+        if not re.search(r"\d", letter_text):
+            warnings.append("cover-letter.html: include a concrete result or metric when the evidence supports one")
+
+    for message in warnings:
+        print(f"WARN: {message}", file=sys.stderr)
+    if problems:
+        for message in problems:
+            print(f"ERROR: {message}", file=sys.stderr)
+        print("Fix the writing problems above, then rebuild. See docs/WRITING.md.", file=sys.stderr)
+        raise SystemExit(1)
+
+
+def content_check(target: Path) -> None:
+    for name in ANALYSIS_FILES:
+        path = target / name
+        if not path.is_file():
+            fail(
+                f"missing {path.relative_to(ROOT)}; create it from the artifact shapes in "
+                "docs/WRITING.md before building"
+            )
+        if PENDING in path.read_text():
+            fail(
+                f"{path.relative_to(ROOT)} is still the scaffold; complete it before building "
+                "(see docs/WRITING.md)"
+            )
+    writing_check(target)
 
 
 def render(html: Path, pdf: Path) -> None:
@@ -310,6 +512,7 @@ def check(slug: str) -> None:
     target = app_dir(slug)
     if not target.is_dir():
         fail(f"missing {target.relative_to(ROOT)}")
+    content_check(target)
     preview_dir = target / "previews"
     preview_dir.mkdir(exist_ok=True)
     for html_name, pdf_name, min_chars in DOCUMENTS:
