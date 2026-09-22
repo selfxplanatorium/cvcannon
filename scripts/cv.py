@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
@@ -429,6 +430,21 @@ def analysis_scaffolds(slug: str) -> dict[str, str]:
     }
 
 
+def scaffold_cv_source(*, template: str, bundle: Path) -> str:
+    """Build an application CV source, matching the profile's portrait state."""
+    if template:
+        source = (bundle / "cv.html").read_text()
+        source = source.replace("../../../ASSETS/", "../../ASSETS/")
+        source = source.replace("../../../PROFILE/", "../../PROFILE/")
+    else:
+        source = MASTER_CV.read_text()
+        source = source.replace("../ASSETS/", "../../ASSETS/")
+    source = apply_portrait_src(source, "../../PROFILE/")
+    if portrait_file() is None:
+        source = remove_portrait_img(source)
+    return source
+
+
 def new(slug: str, template: str = "") -> None:
     require_master_cv()
     validate_html(MASTER_CV, cv=True, portrait_prefix="")
@@ -437,16 +453,7 @@ def new(slug: str, template: str = "") -> None:
     if target.exists():
         fail(f"{target.relative_to(ROOT)} already exists; refusing to overwrite it")
     target.mkdir(parents=True)
-    if template:
-        cv_source = (bundle / "cv.html").read_text()
-        cv_source = cv_source.replace("../../../ASSETS/", "../../ASSETS/")
-        cv_source = cv_source.replace("../../../PROFILE/", "../../PROFILE/")
-        cv_source = apply_portrait_src(cv_source, "../../PROFILE/")
-    else:
-        cv_source = MASTER_CV.read_text()
-        cv_source = cv_source.replace("../ASSETS/", "../../ASSETS/")
-        cv_source = apply_portrait_src(cv_source, "../../PROFILE/")
-    (target / "cv.html").write_text(cv_source)
+    (target / "cv.html").write_text(scaffold_cv_source(template=template, bundle=bundle))
     cover_source = (bundle / "cover-letter.html").read_text()
     cover_source = cover_source.replace("../../../ASSETS/", "../../ASSETS/")
     (target / "cover-letter.html").write_text(cover_source)
@@ -602,7 +609,7 @@ def render(html: Path, pdf: Path) -> None:
         "--disable-gpu",
         "--allow-file-access-from-files",
         "--no-pdf-header-footer",
-        "--virtual-time-budget=3000",
+        "--virtual-time-budget=8000",
         f"--print-to-pdf={pdf.resolve()}",
     ]
     if os.environ.get("CVCANNON_CONTAINER") == "1" or (
@@ -701,6 +708,45 @@ def clean(slug: str) -> None:
     print(f"Removed generated PDFs and previews from {target.relative_to(ROOT)}")
 
 
+def application_slugs() -> list[str]:
+    if not APPLICATIONS.is_dir():
+        return []
+    return sorted(
+        path.name
+        for path in APPLICATIONS.iterdir()
+        if path.is_dir() and SLUG_RE.fullmatch(path.name) and (path / "cv.html").is_file()
+    )
+
+
+def for_every_application(action: Callable[[str], None], verb: str) -> None:
+    slugs = application_slugs()
+    if not slugs:
+        fail(f"no applications found under {APPLICATIONS.relative_to(ROOT)}")
+    failed: list[str] = []
+    for slug in slugs:
+        print(f"==> {verb} {slug}")
+        try:
+            action(slug)
+        except SystemExit as error:
+            if error.code:
+                failed.append(slug)
+    if failed:
+        fail(f"{verb} failed for: " + ", ".join(failed))
+    print(f"{verb} finished for {len(slugs)} application(s).")
+
+
+def build_all() -> None:
+    for_every_application(build, "build")
+
+
+def check_all() -> None:
+    for_every_application(check, "check")
+
+
+def clean_all() -> None:
+    for_every_application(clean, "clean")
+
+
 def help_text() -> None:
     print(
         """cvcannon — turn batches of job listings into polished application packs
@@ -714,6 +760,9 @@ def help_text() -> None:
   make build SLUG=company-role       render, verify, and create preview PNGs
   make check SLUG=company-role       verify existing PDFs and refresh previews
   make clean SLUG=company-role       remove generated PDFs and previews
+  make build-all                     build every application under APPLICATIONS/
+  make check-all                     verify and refresh every application
+  make clean-all                     remove generated files from every application
   make privacy                       scan Git candidates for personal data
 
   ./docker-setup.sh                  build and verify the optional Docker toolchain
@@ -737,6 +786,9 @@ def main(argv: list[str]) -> None:
         "build": lambda: build(slug),
         "check": lambda: check(slug),
         "clean": lambda: clean(slug),
+        "build-all": build_all,
+        "check-all": check_all,
+        "clean-all": clean_all,
     }
     action = actions.get(command)
     if not action:

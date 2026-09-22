@@ -18,7 +18,7 @@ Configures Git hooks, sets executable bits, and runs `doctor`. It initializes a 
 
 ## `make profile`
 
-Creates `PROFILE/master-cv.html` from the `default` CV template and adjusts resource paths for its location. It points the portrait `src` at whichever `portrait.webp`, `portrait.png`, or `portrait.jpg` exists, and removes the portrait element when none is present. It refuses to overwrite an existing master. Complete the file from an existing CV, supplied documents, or information provided in chat.
+Creates `PROFILE/master-cv.html` from the `default` CV template and adjusts resource paths for its location. It points the portrait `src` at whichever `portrait.webp`, `portrait.png`, `portrait.jpg`, or `portrait.jpeg` exists, and removes the portrait element when none is present. It also removes the portrait element from a scaffolded application when no portrait file exists, so photo-free profiles stay photo-free with any template. It refuses to overwrite an existing master. Complete the file from an existing CV, supplied documents, or information provided in chat.
 
 Use `make profile TEMPLATE=<name>` to select another saved template.
 
@@ -28,7 +28,7 @@ Lists complete template bundles found under `BASE/TEMPLATES/`. Each bundle must 
 
 ## `make doctor`
 
-Checks for a supported browser, all required Poppler commands, templates, static fonts, and a complete authoritative CV. It accepts `PROFILE/portrait.webp`, `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`, prefers WebP, and notes when the saved portrait preference should be confirmed. A nonzero exit identifies each missing requirement.
+Checks for a supported browser, all required Poppler commands, templates, static fonts, and a complete authoritative CV. It accepts `PROFILE/portrait.webp`, `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, prefers WebP, and notes when the saved portrait preference should be confirmed. A nonzero exit identifies each missing requirement.
 
 ## `make portrait-convert`
 
@@ -36,7 +36,7 @@ Converts the portrait in `PROFILE/` to WebP, which renders the same and keeps th
 
 ## `make new SLUG=<slug>`
 
-Copies `PROFILE/master-cv.html` into `APPLICATIONS/<slug>/cv.html`, adjusts its relative asset paths, copies the generic cover letter template, and scaffolds `job-description.md`, `job-analysis.md`, `evidence-map.md`, and `application-notes.md`. Each artifact carries a `cvcannon:pending` marker until the agent completes it. The command does not analyze or tailor content. The slug must match `[a-z0-9][a-z0-9-]*`. Existing folders are never overwritten.
+Copies `PROFILE/master-cv.html` into `APPLICATIONS/<slug>/cv.html`, adjusts its relative asset paths, copies the cover letter from the selected template bundle (the master's template, or the `TEMPLATE` override), and scaffolds `job-description.md`, `job-analysis.md`, `evidence-map.md`, and `application-notes.md`. Each artifact carries a `cvcannon:pending` marker until the agent completes it. The command does not analyze or tailor content. The slug must match `[a-z0-9][a-z0-9-]*`. Existing folders are never overwritten.
 
 Use `make new SLUG=<slug> TEMPLATE=<name>` to scaffold both documents from another saved bundle. The resulting CV is a blank template that the agent must populate from the authoritative CV.
 
@@ -53,6 +53,10 @@ Verifies existing PDFs and refreshes previews without rendering the HTML again. 
 ## `make clean SLUG=<slug>`
 
 Deletes only the generated PDFs and `previews/` directory for one application. Source HTML and the saved job description remain.
+
+## `make build-all`, `make check-all`, `make clean-all`
+
+Apply `build`, `check`, or `clean` to every complete application under `APPLICATIONS/`. Each application is processed independently; a failure in one does not stop the others. The command exits nonzero and names every application that failed. They fail immediately when no applications exist.
 
 ## `make privacy`
 
@@ -73,8 +77,11 @@ The remaining targets mirror the native commands:
 | `make docker-new SLUG=<slug> [TEMPLATE=name]` | `make new ...` |
 | `make docker-build SLUG=<slug>` | `make build ...` |
 | `make docker-check SLUG=<slug>` | `make check ...` |
+| `make docker-build-all` | `make build-all` |
+| `make docker-check-all` | `make check-all` |
 | `make docker-privacy` | `make privacy` |
 | `make docker-clean SLUG=<slug>` | `make clean ...` |
+| `make docker-clean-all` | `make clean-all` |
 
 For an uncommon command, run it through the wrapper directly:
 
@@ -84,4 +91,4 @@ scripts/docker.sh make help
 
 ## Outputs and exit status
 
-All commands exit with status `0` on success and a nonzero status on failure. Errors begin with `ERROR:` and state the failed requirement.
+Commands exit with status `0` on success and a nonzero status on failure. Errors begin with `ERROR:` and state the failed requirement. An exception: `scripts/mode.sh` and `scripts/portrait.sh` exit `1` when queried with no argument and no saved value, which is a normal "unset" result rather than an error.

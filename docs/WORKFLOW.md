@@ -65,7 +65,7 @@ Edit `APPLICATIONS/<slug>/cv.html`.
 - Select evidence relevant to the role and remove weak material before reducing font size.
 - Keep dates, titles, credentials, metrics, and proficiency levels exact.
 - Keep the professional profile distinct from the cover letter.
-- Preserve the master CV's choice to include or omit a portrait unless the user requests a different version for that role. When the master uses one, the `src` must match the supplied file (`portrait.webp`, `portrait.png`, or `portrait.jpg`); `make new` sets it automatically.
+- Preserve the master CV's choice to include or omit a portrait unless the user requests a different version for that role. When the master uses one, the `src` must match the supplied file (`portrait.webp`, `portrait.png`, `portrait.jpg`, or `portrait.jpeg`); `make new` sets it automatically.
 
 Before moving on, run the CV validation checklist in [WRITING.md](WRITING.md#cv-validation).
 

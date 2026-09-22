@@ -1,6 +1,8 @@
-.PHONY: help setup templates profile doctor portrait-convert new build check privacy clean \
+.PHONY: help setup templates profile doctor portrait-convert new build check build-all check-all \
+	privacy clean clean-all \
 	docker-setup docker-image docker-templates docker-profile docker-doctor \
-	docker-portrait-convert docker-new docker-build docker-check docker-privacy docker-clean
+	docker-portrait-convert docker-new docker-build docker-check docker-build-all docker-check-all \
+	docker-privacy docker-clean docker-clean-all
 
 PYTHON ?= python3
 
@@ -31,11 +33,20 @@ build:
 check:
 	@$(PYTHON) scripts/cv.py check "$(SLUG)"
 
+build-all:
+	@$(PYTHON) scripts/cv.py build-all
+
+check-all:
+	@$(PYTHON) scripts/cv.py check-all
+
 privacy:
 	@$(PYTHON) scripts/privacy_check.py
 
 clean:
 	@$(PYTHON) scripts/cv.py clean "$(SLUG)"
+
+clean-all:
+	@$(PYTHON) scripts/cv.py clean-all
 
 docker-setup:
 	@bash docker-setup.sh
@@ -64,8 +75,17 @@ docker-build:
 docker-check:
 	@scripts/docker.sh make check SLUG="$(SLUG)"
 
+docker-build-all:
+	@scripts/docker.sh make build-all
+
+docker-check-all:
+	@scripts/docker.sh make check-all
+
 docker-privacy:
 	@scripts/docker.sh make privacy
 
 docker-clean:
 	@scripts/docker.sh make clean SLUG="$(SLUG)"
+
+docker-clean-all:
+	@scripts/docker.sh make clean-all

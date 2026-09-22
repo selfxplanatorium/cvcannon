@@ -6,7 +6,7 @@ The public repository contains generic templates, scripts, documentation, and li
 
 - source files under `PROFILE/`
 - `PROFILE/master-cv.html`
-- `PROFILE/portrait.webp`, `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`, when used
+- `PROFILE/portrait.webp`, `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, when used
 - everything generated under `APPLICATIONS/<slug>/`
 
 Application folders may reveal identity, contact details, work history, job-search activity, company names, and tailored claims. Treat their HTML, Markdown, PDFs, and preview images as private.

@@ -58,7 +58,7 @@ Use whichever format is already available:
 - add a PDF, DOCX, HTML, Markdown, or text file containing career information; or
 - paste career information directly into chat when working with an agent.
 
-The agent creates `PROFILE/master-cv.html` from the supplied material. This becomes the authoritative CV used in every later session. A portrait is optional; save it as `PROFILE/portrait.webp`, `PROFILE/portrait.png`, or `PROFILE/portrait.jpg` when wanted. WebP is preferred because it keeps the finished PDF smaller; `make portrait-convert` converts a PNG or JPEG portrait in place. If no portrait is present, the agent asks whether one was intended and records the answer locally.
+The agent creates `PROFILE/master-cv.html` from the supplied material. This becomes the authoritative CV used in every later session. A portrait is optional; save it as `PROFILE/portrait.webp`, `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg` when wanted. WebP is preferred because it keeps the finished PDF smaller; `make portrait-convert` converts a PNG or JPEG portrait in place. If no portrait is present, the agent asks whether one was intended and records the answer locally.
 
 The agent creates the master shell using the selected execution mode. The underlying native command is:
 
@@ -127,6 +127,8 @@ make build SLUG=acme-platform-engineer
 
 With Docker, run `make docker-build SLUG=acme-platform-engineer`.
 
+To build, recheck, or clean every application at once, use `make build-all`, `make check-all`, or `make clean-all` (Docker equivalents `make docker-build-all`, and so on). Each application is processed independently and failures are reported per application.
+
 The build creates and verifies `cv.pdf` and `cover-letter.pdf`, then renders PNG previews. Open both files under `APPLICATIONS/acme-platform-engineer/previews/` and inspect them before sending the PDFs.
 
 ## What the build verifies
@@ -149,8 +151,9 @@ Automated checks cannot judge factual accuracy, writing quality, visual balance,
 | `BASE/TEMPLATES/<name>/` | Saved CV and cover letter template pairs |
 | `ASSETS/fonts/` | Lexend and Liberation Serif fonts and licenses |
 | `.cvcannon/mode` | Ignored local choice between Docker and native tools |
+| `.cvcannon/portrait` | Ignored local record of whether a portrait is wanted |
 | `PROFILE/master-cv.html` | Authoritative candidate CV |
-| `PROFILE/` | Original source files and an optional portrait (`portrait.webp`, `portrait.png`, or `portrait.jpg`) |
+| `PROFILE/` | Original source files and an optional portrait (`portrait.webp`, `portrait.png`, `portrait.jpg`, or `portrait.jpeg`) |
 | `APPLICATIONS/` | Role-specific sources, PDFs, and previews |
 | `scripts/` | Setup, generation, rendering, and verification commands |
 | `docs/` | Setup, workflow, privacy, and troubleshooting guides |

@@ -89,7 +89,7 @@ The command uses the `default` template. Select another saved template with `mak
 
 Use the supplied information to complete `PROFILE/master-cv.html`. Remove sections that do not apply and resolve every placeholder. This file becomes the baseline for all future applications.
 
-Optional: save a portrait as `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`. Use a real image file, ideally square or portrait-oriented and at least 400 pixels wide. WebP is preferred because it keeps the finished PDF smaller; if you supply PNG or JPEG, run `make portrait-convert` (it needs `cwebp` from the `webp` package, or the Docker toolchain) and then point the master CV's portrait `src` at `portrait.webp`. Keep the portrait element in the master CV when using it; otherwise remove the element.
+Optional: save a portrait as `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`. Use a real image file, ideally square or portrait-oriented and at least 400 pixels wide. WebP is preferred because it keeps the finished PDF smaller; if you supply PNG or JPEG, run `make portrait-convert` (it needs `cwebp` from the `webp` package, or the Docker toolchain) and then point the master CV's portrait `src` at `portrait.webp`. Keep the portrait element in the master CV when using it; otherwise remove the element.
 
 If no portrait is present, the agent asks whether you intended one and records the answer in `.cvcannon/portrait`, so it does not ask again. Supply the file when you want a photo; no action is required when you do not.
 

@@ -41,7 +41,8 @@ The repository scripts perform repeatable mechanical work:
 - `make new SLUG=<company-role>` scaffolds an application from the master CV and creates the job analysis, evidence map, and application notes;
 - `make new SLUG=<company-role> TEMPLATE=<name>` scaffolds an application with another saved design;
 - `make build SLUG=<company-role>` renders and verifies both PDFs, rejects incomplete analysis artifacts, and applies the writing checks;
-- `make check SLUG=<company-role>` rechecks PDFs and refreshes previews; and
+- `make check SLUG=<company-role>` rechecks PDFs and refreshes previews;
+- `make build-all`, `make check-all`, and `make clean-all` apply those commands to every application, reporting failures per application; and
 - `make privacy` checks files that could enter Git.
 
 When the user chooses Docker, use the corresponding `docker-` target, such as `make docker-new SLUG=<company-role>` or `make docker-build SLUG=<company-role>`. These commands produce the same files and apply the same checks through the containerized toolchain.
@@ -101,7 +102,7 @@ A portrait is optional. Supported files are `PROFILE/portrait.webp`, `PROFILE/po
 
 - If a portrait file exists and the user wants a photo, keep the portrait `<img>` in the master CV with its `src` set to that filename. `make profile` and `make new` set the correct path automatically.
 - If the user does not want a photo, the master CV is photo-free; remove the portrait `<img>`.
-- If no portrait is present and no preference is saved, ask the user whether they intended one before continuing. If yes, ask them to add `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, or `PROFILE/portrait.jpg`, then save the choice with `bash scripts/portrait.sh wanted`. If no, save it with `bash scripts/portrait.sh none` and take no further action.
+- If no portrait is present and no preference is saved, ask the user whether they intended one before continuing. If yes, ask them to add `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, then save the choice with `bash scripts/portrait.sh wanted`. If no, save it with `bash scripts/portrait.sh none` and take no further action.
 - The saved preference lives in `.cvcannon/portrait` and is ignored by Git. Do not ask again once it is saved. If the user changes their mind, update the file and the master CV.
 
 Do not force the user into a schema, require them to rewrite an existing CV, or invent missing details. Never force-add files under `PROFILE/` to Git.
@@ -111,7 +112,7 @@ Do not force the user into a schema, require them to rewrite an existing CV, or 
 - `BASE/TEMPLATES/<name>/` — named template bundles containing `cv.html` and `cover-letter.html`.
 - `ASSETS/` — Lexend and Liberation Serif font files and their licenses.
 - `PROFILE/master-cv.html` — authoritative candidate CV used as the base for every application.
-- `PROFILE/` — source files and an optional `portrait.webp`, `portrait.png`, or `portrait.jpg` used to create the master CV.
+- `PROFILE/` — source files and an optional `portrait.webp`, `portrait.png`, `portrait.jpg`, or `portrait.jpeg` used to create the master CV.
 - `APPLICATIONS/<slug>/` — ignored role-specific analysis, HTML, PDF, and preview outputs.
 - `scripts/` — setup, scaffolding, rendering, verification, and privacy checks.
 - `docs/` — workflow, privacy, and troubleshooting documentation.

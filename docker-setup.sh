@@ -29,7 +29,8 @@ if [[ ! -d .git ]]; then
   git init -b main
 fi
 git config core.hooksPath .githooks
-chmod +x .githooks/pre-commit scripts/*.sh scripts/*.py docker-setup.sh
+chmod +x .githooks/pre-commit scripts/setup.sh scripts/cv.py scripts/privacy_check.py \
+  scripts/docker.sh scripts/mode.sh docker-setup.sh
 
 echo "Checking the container and repository..."
 scripts/docker.sh make templates

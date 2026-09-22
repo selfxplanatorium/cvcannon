@@ -89,7 +89,7 @@ To use another saved template:
 make docker-profile TEMPLATE=editorial
 ```
 
-Ask the agent to transfer supported facts into `PROFILE/master-cv.html`, remove unused sections and placeholders, and remove the portrait element when no portrait is wanted. A portrait may be `portrait.webp` (preferred), `portrait.png`, or `portrait.jpg`; convert a PNG or JPEG to WebP inside the container with `make docker-portrait-convert`. Then run:
+Ask the agent to transfer supported facts into `PROFILE/master-cv.html`, remove unused sections and placeholders, and remove the portrait element when no portrait is wanted. A portrait may be `portrait.webp` (preferred), `portrait.png`, `portrait.jpg`, or `portrait.jpeg`; convert a PNG or JPEG to WebP inside the container with `make docker-portrait-convert`. Then run:
 
 ```bash
 make docker-doctor
