@@ -41,15 +41,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install the toolchain from a terminal without Python on PATH
+      - name: Install Python and the toolchain from a terminal without Python on PATH
         shell: cmd
         run: |
-          set "PATH=C:\Windows\System32;C:\Windows"
+          rem C:\Windows holds the runner's py.exe, so leave it out to force the Python install.
+          set "PATH=C:\Windows\System32"
           call cvcannon.cmd install
       - name: Report tools through the installed Python
         shell: cmd
         run: |
-          set "PATH=C:\Windows\System32;C:\Windows"
+          rem C:\Windows holds the runner's py.exe, so leave it out to force the Python install.
+          set "PATH=C:\Windows\System32"
           call cvcannon.cmd tools
       - uses: actions/setup-python@v5
         with:

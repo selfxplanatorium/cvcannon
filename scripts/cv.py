@@ -169,6 +169,13 @@ def refresh_windows_path() -> None:
 
 
 def tool(name: str) -> str | None:
+    # Take every Poppler command from the installation that provides pdfinfo. Git for
+    # Windows ships its own pdftotext, which can come earlier on PATH.
+    if name in REQUIRED_TOOLS and name != "pdfinfo":
+        pdfinfo = shutil.which("pdfinfo")
+        sibling = pdfinfo and shutil.which(name, path=str(Path(pdfinfo).parent))
+        if sibling:
+            return sibling
     return shutil.which(name)
 
 

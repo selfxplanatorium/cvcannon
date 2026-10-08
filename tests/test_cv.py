@@ -233,3 +233,17 @@ def test_profile_accepts_make_style_template(monkeypatch):
     cv.main(["cv.py", "profile", "TEMPLATE=editorial"])
     cv.main(["cv.py", "profile", "editorial"])
     assert calls == ["editorial", "editorial"]
+
+
+def test_poppler_tools_come_from_the_pdfinfo_installation(monkeypatch, tmp_path):
+    suffix = ".exe" if cv.os.name == "nt" else ""
+    poppler, git = tmp_path / "poppler", tmp_path / "git"
+    for folder, names in ((poppler, cv.REQUIRED_TOOLS), (git, ["pdftotext"])):
+        folder.mkdir()
+        for name in names:
+            exe = folder / f"{name}{suffix}"
+            exe.write_bytes(b"")
+            exe.chmod(0o755)
+    monkeypatch.setenv("PATH", cv.os.pathsep.join([str(git), str(poppler)]))
+    found = cv.tool("pdftotext")
+    assert found and cv.os.path.normcase(found) == cv.os.path.normcase(str(poppler / f"pdftotext{suffix}"))
