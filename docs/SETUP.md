@@ -59,7 +59,7 @@ The pipeline recognizes Google Chrome in its standard `/Applications` location.
 
 ### Windows
 
-> **Experimental:** Windows support has not been tested on a real Windows machine yet. It has only been tested through compatibility layers (Wine). Report problems through the repository's issue tracker.
+> **Experimental:** Windows support is tested on GitHub's Windows runners and through Wine, but not yet on a personal Windows PC. Rendering with Microsoft Edge and Docker Desktop on Windows are untested. Report problems through the repository's issue tracker.
 
 Windows 10 (version 1803 or later) and Windows 11 are supported natively. One command installs everything, so the agent runs it on the first session:
 

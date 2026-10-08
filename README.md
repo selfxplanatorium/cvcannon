@@ -35,7 +35,7 @@ On first use, the agent asks you to choose:
 - **Docker:** cvcannon supplies Python, Chromium, Poppler, and system fonts in a reproducible container. You need Docker Desktop, or Docker Engine with the Compose plugin.
 - **Native:** cvcannon uses Python, a Chromium-family browser, Poppler, Make, and Git installed directly on your computer. On Windows, the agent installs everything itself with `cvcannon.cmd install`, without administrator rights. See the [setup guide](docs/SETUP.md#windows).
 
-> **Experimental:** Windows support has not been tested on a real Windows machine yet. It has only been tested through compatibility layers (Wine). Report problems through the repository's issue tracker.
+> **Experimental:** Windows support is tested on GitHub's Windows runners and through Wine, but not yet on a personal Windows PC. Rendering with Microsoft Edge and Docker Desktop on Windows are untested. Report problems through the repository's issue tracker.
 
 The agent saves the choice locally, performs setup, checks the environment, and uses the matching commands in later sessions. You do not need to launch repository setup scripts yourself.
 
