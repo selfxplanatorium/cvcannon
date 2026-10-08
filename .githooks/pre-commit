@@ -1,3 +1,21 @@
 #!/usr/bin/env sh
 set -eu
-python3 scripts/privacy_check.py --staged
+# Run the privacy check with the first Python 3.9+ found. Git for Windows runs hooks with
+# its bundled sh, where Python is usually `python` or `py`.
+run_with() {
+  if "$@" -c "import sys; sys.exit(sys.version_info < (3, 9))" >/dev/null 2>&1; then
+    exec "$@" scripts/privacy_check.py --staged
+  fi
+}
+run_with python3
+run_with python
+run_with py -3
+# A per-user Python installed after this terminal opened is not on PATH yet.
+if [ -n "${LOCALAPPDATA:-}" ]; then
+  # MSYS accepts C:/... paths; MinGit has no cygpath.
+  for python in "$(printf '%s' "$LOCALAPPDATA" | tr '\\' /)"/Programs/Python/Python3*/python.exe; do
+    run_with "$python"
+  done
+fi
+echo "ERROR: Python 3 is required for the privacy check. On Windows, run cvcannon.cmd install." >&2
+exit 1

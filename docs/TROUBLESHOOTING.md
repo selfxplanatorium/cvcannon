@@ -2,11 +2,11 @@
 
 ## Docker is unavailable
 
-Ask the agent to run `docker info` and `docker compose version`. Start Docker Desktop or the Docker daemon if the first command fails. Install the Docker Compose plugin if the second command fails, then have the agent rerun `./docker-setup.sh`.
+Ask the agent to run `docker info` and `docker compose version`. Start Docker Desktop or the Docker daemon if the first command fails. Install the Docker Compose plugin if the second command fails, then have the agent rerun `make docker-setup` (`cvcannon.cmd docker-setup` on Windows).
 
 ## Docker-generated files have the wrong owner
 
-Use the documented `make docker-*` targets or `scripts/docker.sh`. The wrapper passes the current host user and group IDs into Compose. Avoid invoking `docker compose run` with a different `user` value. Files created earlier as root may need their ownership corrected once with the host's administrator tools.
+Use the documented `make docker-*` targets or `python3 scripts/cv.py docker` (`cvcannon.cmd docker` on Windows). The wrapper passes the current host user and group IDs into Compose. Avoid invoking `docker compose run` with a different `user` value. Files created earlier as root may need their ownership corrected once with the host's administrator tools.
 
 ## Chromium exits unexpectedly in Docker
 
@@ -18,7 +18,7 @@ Provide an existing CV, a readable document or text file under `PROFILE/`, or ca
 
 ## Portrait format is rejected
 
-Supported portraits are `portrait.webp`, `portrait.png`, and `portrait.jpg` (or `.jpeg`). The script checks the file signature against the extension, so renaming a file does not convert it. Export or convert the image to a supported format. `make portrait-convert` converts a PNG or JPEG portrait to WebP; it needs `cwebp` from the `webp` package (Debian/Ubuntu `webp`, Fedora `libwebp-tools`, Arch `libwebp`, macOS `brew install webp`) or the Docker toolchain via `make docker-portrait-convert`.
+Supported portraits are `portrait.webp`, `portrait.png`, and `portrait.jpg` (or `.jpeg`). The script checks the file signature against the extension, so renaming a file does not convert it. Export or convert the image to a supported format. `make portrait-convert` converts a PNG or JPEG portrait to WebP; it needs `cwebp` from the `webp` package (Debian/Ubuntu `webp`, Fedora `libwebp-tools`, Arch `libwebp`, macOS `brew install webp`, Windows `cvcannon.cmd install`) or the Docker toolchain via `make docker-portrait-convert`.
 
 ## Portrait is missing from the PDF
 
@@ -56,7 +56,15 @@ Open the PDF and try selecting a paragraph. Restore the local static fonts if se
 
 ## Chromium is not found
 
-Install Chromium or Google Chrome and ensure its executable is on `PATH`. Supported Linux executable names are `chromium`, `chromium-browser`, `google-chrome`, and `google-chrome-stable`.
+Install Chromium or Google Chrome and ensure its executable is on `PATH`. Supported Linux executable names are `chromium`, `chromium-browser`, `google-chrome`, and `google-chrome-stable`. On Windows, cvcannon also checks the standard Chrome, Chromium, and Microsoft Edge install folders. Set `CVCANNON_BROWSER` to the full path of a Chromium-family executable to use any other location.
+
+## A tool is missing on Windows
+
+Run `.\cvcannon.cmd install`. It installs whatever `.\cvcannon.cmd tools` reports as missing. Use `cvcannon.cmd` in place of `make`, `python3`, or `python`. It finds a working Python, skips the Microsoft Store placeholder, and installs Python when none exists.
+
+## `cvcannon.cmd install` cannot download
+
+The installer downloads from python.org, github.com, storage.googleapis.com, and googlechromelabs.github.io. Allow those hosts through the proxy or firewall, or install Python, Git, and Poppler manually and add them to `PATH`. Windows 10 builds older than 1803 lack `curl.exe`. Install Python manually there, then rerun the command.
 
 ## The contact row wraps
 

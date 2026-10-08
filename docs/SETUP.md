@@ -1,6 +1,6 @@
 # First-time setup
 
-Run all commands from the project root.
+Run all commands from the project root. On Windows, run every `make` command in these docs as `cvcannon.cmd` with the same arguments, for example `cvcannon.cmd build SLUG=acme-platform-engineer`.
 
 cvcannon supports two setup paths. Docker provides the shortest reproducible setup. Native setup uses tools installed directly on the host. Both paths produce the same files and use the same checks.
 
@@ -12,19 +12,19 @@ The choice is stored only in `.cvcannon/mode`, which Git ignores. Tell the agent
 
 ## Docker setup
 
-Install a current Docker Desktop, or Docker Engine with the Docker Compose plugin. The agent then runs:
+Install a current Docker Desktop, or Docker Engine with the Docker Compose plugin. On Windows, Docker Desktop needs administrator rights and usually a restart, so the user installs it. Native mode on Windows needs no installation by the user. The agent then runs:
 
 ```bash
-./docker-setup.sh
+make docker-setup
 ```
 
-The user is not expected to launch this script manually. The script verifies Docker, builds the image, configures the committed Git hook, lists the available templates, and runs the privacy check. If `PROFILE/master-cv.html` already exists, it also runs the full environment doctor. Otherwise it reports the profile creation steps to the agent.
+On Windows, the agent runs `cvcannon.cmd install docker` and then `cvcannon.cmd docker-setup`. `./docker-setup.sh` remains as a shortcut on Linux and macOS. The user is not expected to launch this command manually. The command verifies Docker, builds the image, configures the committed Git hook, lists the available templates, and runs the privacy check. If `PROFILE/master-cv.html` already exists, it also runs the full environment doctor. Otherwise it reports the profile creation steps to the agent.
 
 Continue with Docker-prefixed targets such as `make docker-profile`, `make docker-new`, and `make docker-build`. The full workflow and command mapping are in [DOCKER.md](DOCKER.md).
 
 ## Native setup
 
-The pipeline uses Python's standard library. PDF rendering and inspection require a Chromium-family browser and Poppler. Converting a portrait to WebP with `make portrait-convert` additionally requires `cwebp` from the `webp` package; it is optional and only needed for that command. The Docker image already includes it.
+The pipeline uses Python's standard library. PDF rendering and inspection require a Chromium-family browser and Poppler. On Windows, `cvcannon.cmd install` installs all of them; see [Windows](#windows). Converting a portrait to WebP with `make portrait-convert` additionally requires `cwebp` from the `webp` package; it is optional and only needed for that command. The Docker image already includes it.
 
 ### Debian and Ubuntu
 
@@ -59,7 +59,25 @@ The pipeline recognizes Google Chrome in its standard `/Applications` location.
 
 ### Windows
 
-Use WSL 2 with a Linux browser available inside WSL. Native Windows command paths are not currently supported by `scripts/cv.py`.
+> **Experimental:** Windows support has not been tested on a real Windows machine yet. It has only been tested through compatibility layers (Wine). Report problems through the repository's issue tracker.
+
+Windows 10 (version 1803 or later) and Windows 11 are supported natively. One command installs everything, so the agent runs it on the first session:
+
+```powershell
+.\cvcannon.cmd install
+```
+
+It needs no administrator rights, prompts, or terminal restart. It installs only what is missing:
+
+- Python from python.org, installed for the current user;
+- Git (MinGit), Poppler, and `cwebp`, unpacked into `%LOCALAPPDATA%\cvcannon\tools` and added to the user `PATH`; and
+- a portable headless Chrome, only when neither Microsoft Edge nor Google Chrome is present. Edge ships with Windows, so this download is normally skipped.
+
+On Windows, `cvcannon.cmd` replaces `make` and takes the same arguments, for example `.\cvcannon.cmd build SLUG=acme-platform-engineer`. From Git Bash, call it as `./cvcannon.cmd`. It also picks up tools installed after the terminal opened. `make tools` (`.\cvcannon.cmd tools`) reports what is installed.
+
+`.\cvcannon.cmd install docker` installs only Python and Git for Docker mode. Docker Desktop itself needs administrator rights and usually a restart, so the user installs it.
+
+Tools installed another way also work, for example `winget install --id oschwartz10612.Poppler -e`. Set `CVCANNON_BROWSER` to the full path of a Chromium-family executable to use a specific browser on any platform.
 
 ## Provide candidate information
 
@@ -105,7 +123,7 @@ This command:
 
 1. creates a local Git repository on branch `main` if one does not exist;
 2. sets `core.hooksPath` to `.githooks`;
-3. marks the scripts executable; and
+3. marks the scripts executable on Linux and macOS; and
 4. runs the environment doctor.
 
 It does not add a remote, create a commit, upload files, or contact GitHub.

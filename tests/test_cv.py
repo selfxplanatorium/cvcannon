@@ -72,9 +72,10 @@ def test_scaffold_template_with_portrait_keeps_and_points_image(monkeypatch):
 
 
 def write_app(target: Path, cv_body: str, letter_body: str) -> None:
-    (target / "cv.html").write_text(f"<html><body><p>{cv_body}</p></body></html>")
+    (target / "cv.html").write_text(f"<html><body><p>{cv_body}</p></body></html>", encoding="utf-8")
     (target / "cover-letter.html").write_text(
-        f'<html><body><p class="body-text">Dear team, {letter_body}</p></body></html>'
+        f'<html><body><p class="body-text">Dear team, {letter_body}</p></body></html>',
+        encoding="utf-8",
     )
 
 
@@ -99,11 +100,12 @@ def test_cover_letter_body_words_counts_only_body(tmp_path):
     path = tmp_path / "cover-letter.html"
     path.write_text(
         '<html><body><p>ignored</p>'
-        '<p class="body-text">one two three four five</p></body></html>'
+        '<p class="body-text">one two three four five</p></body></html>',
+        encoding="utf-8",
     )
     assert cv.cover_letter_body_words(path) == 5
     empty = tmp_path / "empty.html"
-    empty.write_text('<html><body><p>no body-text class</p></body></html>')
+    empty.write_text('<html><body><p>no body-text class</p></body></html>', encoding="utf-8")
     assert cv.cover_letter_body_words(empty) is None
 
 
@@ -114,7 +116,7 @@ def test_phrase_hits_respects_word_boundaries():
 
 def test_validate_html_rejects_unresolved_placeholder(tmp_repo):
     path = tmp_repo / "cv.html"
-    path.write_text("<html><body><p>{{Full Name}}</p><p>[Role]</p></body></html>")
+    path.write_text("<html><body><p>{{Full Name}}</p><p>[Role]</p></body></html>", encoding="utf-8")
     with pytest.raises(SystemExit):
         cv.validate_html(path, cv=False)
 
@@ -123,7 +125,8 @@ def test_validate_html_rejects_remote_dependency(tmp_repo):
     path = tmp_repo / "cv.html"
     path.write_text(
         '<html><head><link href="https://fonts.example/x.css"></head>'
-        "<body><p>ok</p></body></html>"
+        "<body><p>ok</p></body></html>",
+        encoding="utf-8",
     )
     with pytest.raises(SystemExit):
         cv.validate_html(path, cv=False)
@@ -131,7 +134,7 @@ def test_validate_html_rejects_remote_dependency(tmp_repo):
 
 def test_validate_html_accepts_clean_document(tmp_repo):
     path = tmp_repo / "cv.html"
-    path.write_text("<html><body><p>Clean, local, no placeholders.</p></body></html>")
+    path.write_text("<html><body><p>Clean, local, no placeholders.</p></body></html>", encoding="utf-8")
     cv.validate_html(path, cv=False)
 
 
@@ -143,7 +146,90 @@ def test_build_all_fails_without_applications(tmp_repo, monkeypatch):
 
 def test_application_slugs_skips_incomplete_folders(monkeypatch, tmp_path):
     (tmp_path / "complete").mkdir()
-    (tmp_path / "complete" / "cv.html").write_text("<html></html>")
+    (tmp_path / "complete" / "cv.html").write_text("<html></html>", encoding="utf-8")
     (tmp_path / "empty").mkdir()
     monkeypatch.setattr(cv, "APPLICATIONS", tmp_path)
     assert cv.application_slugs() == ["complete"]
+
+
+def test_browser_honours_override(monkeypatch, tmp_path):
+    exe = tmp_path / "chrome.exe"
+    exe.write_bytes(b"")
+    monkeypatch.setenv("CVCANNON_BROWSER", str(exe))
+    assert cv.browser() == str(exe)
+
+
+def test_browser_finds_edge_on_windows(monkeypatch, tmp_path):
+    edge = tmp_path / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+    edge.parent.mkdir(parents=True)
+    edge.write_bytes(b"")
+    monkeypatch.delenv("CVCANNON_BROWSER", raising=False)
+    monkeypatch.setattr(cv.shutil, "which", lambda name: None)
+    monkeypatch.setattr(cv, "WINDOWS", True)
+    # Hide real installs so a machine with Chrome does not win over the fake Edge.
+    monkeypatch.delenv("PROGRAMFILES", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path))
+    assert cv.browser() == str(edge)
+
+
+def test_browser_falls_back_to_installed_headless_shell(monkeypatch, tmp_path):
+    shell = tmp_path / "cvcannon" / "tools" / cv.HEADLESS_SHELL
+    shell.parent.mkdir(parents=True)
+    shell.write_bytes(b"")
+    monkeypatch.delenv("CVCANNON_BROWSER", raising=False)
+    monkeypatch.delenv("PROGRAMFILES", raising=False)
+    monkeypatch.delenv("PROGRAMFILES(X86)", raising=False)
+    monkeypatch.setattr(cv.shutil, "which", lambda name: None)
+    monkeypatch.setattr(cv, "WINDOWS", True)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert cv.browser() == str(shell)
+
+
+def test_refresh_windows_path_appends_new_registry_entries(monkeypatch):
+    monkeypatch.setenv("PATH", "first" + cv.os.pathsep + "second")
+    monkeypatch.setattr(cv, "windows_registry_path", lambda: ["second", "fresh"])
+    cv.refresh_windows_path()
+    assert cv.os.environ["PATH"].split(cv.os.pathsep) == ["first", "second", "fresh"]
+
+
+def test_install_refuses_outside_windows(monkeypatch):
+    monkeypatch.setattr(cv, "WINDOWS", False)
+    with pytest.raises(SystemExit):
+        cv.install()
+
+
+def test_saved_choice_writes_and_reads(tmp_path, capsys):
+    path = tmp_path / ".cvcannon" / "mode"
+    with pytest.raises(SystemExit):
+        cv.saved_choice(path, "", ("docker", "native"), "execution mode")
+    cv.saved_choice(path, "native", ("docker", "native"), "execution mode")
+    assert path.read_text(encoding="utf-8") == "native\n"
+    with pytest.raises(SystemExit):
+        cv.saved_choice(path, "podman", ("docker", "native"), "execution mode")
+
+
+def test_docker_targets_run_the_cli_in_the_container(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cv, "docker_run", lambda args: calls.append(args))
+    cv.main(["cv.py", "docker-new", "acme-role", ""])
+    assert calls == [["python3", "scripts/cv.py", "new", "acme-role", ""]]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [["acme-role", "editorial"], ["SLUG=acme-role", "TEMPLATE=editorial"], ["TEMPLATE=editorial", "acme-role"]],
+)
+def test_main_accepts_positional_and_make_style_arguments(monkeypatch, args):
+    calls = []
+    monkeypatch.setattr(cv, "new", lambda slug, template: calls.append((slug, template)))
+    cv.main(["cv.py", "new", *args])
+    assert calls == [("acme-role", "editorial")]
+
+
+def test_profile_accepts_make_style_template(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cv, "create_master", calls.append)
+    cv.main(["cv.py", "profile", "TEMPLATE=editorial"])
+    cv.main(["cv.py", "profile", "editorial"])
+    assert calls == ["editorial", "editorial"]

@@ -3,11 +3,15 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import urllib.request
+import zipfile
 from collections.abc import Callable
 from datetime import date
 from html.parser import HTMLParser
@@ -15,6 +19,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+WINDOWS = os.name == "nt"
 PROFILE = ROOT / "PROFILE"
 MASTER_CV = PROFILE / "master-cv.html"
 APPLICATIONS = ROOT / "APPLICATIONS"
@@ -26,12 +31,28 @@ PORTRAIT_STEM = "portrait"
 # file, which keeps the finished PDF smaller.
 PORTRAIT_EXTENSIONS = ("webp", "png", "jpg", "jpeg")
 PORTRAIT_PREFERENCE = ROOT / ".cvcannon" / "portrait"
+MODE_PREFERENCE = ROOT / ".cvcannon" / "mode"
+# Windows runs every target through cvcannon.cmd, which takes the same arguments as make.
+MAKE = "cvcannon.cmd" if WINDOWS else "make"
+CLI = "cvcannon.cmd" if WINDOWS else "python3 scripts/cv.py"
+EXECUTABLES = (
+    ".githooks/pre-commit", "docker-setup.sh", "scripts/cv.py", "scripts/privacy_check.py",
+    "scripts/setup.sh", "scripts/docker.sh", "scripts/mode.sh", "scripts/portrait.sh",
+)
+DOCKER_COMMANDS = (
+    "templates", "profile", "doctor", "portrait-convert", "new", "build", "check",
+    "build-all", "check-all", "clean", "clean-all", "privacy",
+)
 PORTRAIT_SRC_RE = re.compile(
     r'src="(?:[^"]*?/)?' + PORTRAIT_STEM + r"\.(?:" + "|".join(PORTRAIT_EXTENSIONS) + r')"'
 )
 PORTRAIT_IMG_RE = re.compile(
     r"[ \t]*<img\b[^>]*class=[\"'][^\"']*profile-pic[^\"']*[\"'][^>]*>[ \t]*\n?", re.I
 )
+HEADLESS_SHELL = "chrome-headless-shell/chrome-headless-shell-win64/chrome-headless-shell.exe"
+LIBWEBP_URL = "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0-windows-x64.zip"
+CHROME_FOR_TESTING = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+DOCKER_DESKTOP = "https://docs.docker.com/desktop/setup/install/windows-install/"
 REQUIRED_TOOLS = ("pdfinfo", "pdftotext", "pdffonts", "pdfimages", "pdftoppm")
 DOCUMENTS = (("cv.html", "cv.pdf", 800), ("cover-letter.html", "cover-letter.pdf", 300))
 PENDING = "<!-- cvcannon:pending -->"
@@ -111,25 +132,71 @@ def fail(message: str) -> "NoReturn":
     raise SystemExit(1)
 
 
+def windows_dirs(*variables: str) -> list[Path]:
+    return [Path(os.environ[name]) for name in variables if os.environ.get(name)]
+
+
+def tools_home() -> Path:
+    """Folder for the tools `install` downloads on Windows; needs no administrator rights."""
+    return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "cvcannon" / "tools"
+
+
+def windows_registry_path() -> list[str]:
+    import winreg
+
+    entries: list[str] = []
+    keys = (
+        (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+    )
+    for root, name in keys:
+        try:
+            with winreg.OpenKey(root, name) as key:
+                value, _ = winreg.QueryValueEx(key, "Path")
+        except OSError:
+            continue
+        entries += [os.path.expandvars(entry) for entry in str(value).split(";") if entry]
+    return entries
+
+
+def refresh_windows_path() -> None:
+    """Add PATH entries saved after this shell started, such as freshly installed tools."""
+    current = [entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry]
+    known = {os.path.normcase(entry) for entry in current}
+    added = [entry for entry in windows_registry_path() if os.path.normcase(entry) not in known]
+    if added:
+        os.environ["PATH"] = os.pathsep.join(current + added)
+
+
 def tool(name: str) -> str | None:
     return shutil.which(name)
 
 
 def browser() -> str | None:
+    override = os.environ.get("CVCANNON_BROWSER")
+    if override:
+        return override if Path(override).is_file() else tool(override)
     for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable"):
-        found = tool(name)
+        found = shutil.which(name)
         if found:
             return found
-    mac = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    return str(mac) if mac.exists() else None
+    candidates = [Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")]
+    if WINDOWS:
+        # Edge ships with Windows 10 and 11 and uses the same headless PDF printer.
+        roots = windows_dirs("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")
+        candidates = [root / "Google/Chrome/Application/chrome.exe" for root in roots]
+        candidates += [root / "Chromium/Application/chrome.exe" for root in roots]
+        candidates += [root / "Microsoft/Edge/Application/msedge.exe" for root in roots]
+        candidates.append(tools_home() / HEADLESS_SHELL)
+    return next((str(path) for path in candidates if path.is_file()), None)
 
 
 def require_master_cv() -> None:
-    if not MASTER_CV.is_file() or not MASTER_CV.read_text(errors="ignore").strip():
+    if not MASTER_CV.is_file() or not MASTER_CV.read_text(encoding="utf-8", errors="ignore").strip():
         fail(
             "missing `PROFILE/master-cv.html`. Ask the user to provide an existing CV, "
             "a text or document file in `PROFILE/`, or their career information in chat; "
-            "then create the authoritative HTML CV with `make profile`."
+            f"then create the authoritative HTML CV with `{MAKE} profile`."
         )
 
 
@@ -175,7 +242,7 @@ def portrait_name() -> str | None:
 
 def portrait_preference() -> str:
     if PORTRAIT_PREFERENCE.is_file():
-        value = PORTRAIT_PREFERENCE.read_text().strip()
+        value = PORTRAIT_PREFERENCE.read_text(encoding="utf-8").strip()
         if value in {"wanted", "none"}:
             return value
     return "unset"
@@ -223,14 +290,14 @@ def portrait_note() -> None:
         print(
             "NOTE: no portrait found. Ask the user whether they intended one. "
             "If yes, have them add it to PROFILE/ as portrait.webp (preferred), portrait.png, "
-            "or portrait.jpg, then run `bash scripts/portrait.sh wanted`. "
-            "If no, run `bash scripts/portrait.sh none`."
+            f"or portrait.jpg, then run `{CLI} portrait wanted`. "
+            f"If no, run `{CLI} portrait none`."
         )
 
 
 def validate_slug(value: str) -> str:
     if not value:
-        fail("missing SLUG. Example: make new SLUG=acme-platform-engineer")
+        fail(f"missing SLUG. Example: {MAKE} new SLUG=acme-platform-engineer")
     if not SLUG_RE.fullmatch(value):
         fail("SLUG must contain lowercase letters, digits, and single hyphen separators")
     return value
@@ -252,7 +319,7 @@ def template_bundle(value: str = "") -> tuple[str, Path]:
 
 
 def master_template_name() -> str:
-    source = MASTER_CV.read_text()
+    source = MASTER_CV.read_text(encoding="utf-8")
     match = re.search(r'<meta name="cvcannon-template" content="([a-z0-9-]+)">', source)
     return match.group(1) if match else DEFAULT_TEMPLATE
 
@@ -270,11 +337,14 @@ def list_templates() -> None:
 
 
 def run(command: list[str], *, capture: bool = False) -> str:
+    command = [tool(command[0]) or command[0], *command[1:]]
     result = subprocess.run(
         command,
         cwd=ROOT,
         check=False,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
     )
@@ -302,7 +372,8 @@ def doctor() -> None:
         if not path.is_file():
             problems.append(str(path.relative_to(ROOT)))
     if problems:
-        fail("missing required software or project files: " + ", ".join(problems))
+        hint = f". Run `{MAKE} install` to install the software." if WINDOWS else ""
+        fail("missing required software or project files: " + ", ".join(problems) + hint)
     require_master_cv()
     validate_html(MASTER_CV, cv=True, portrait_prefix="")
     portrait_note()
@@ -315,7 +386,7 @@ def create_master(template: str = "") -> None:
     if MASTER_CV.exists():
         fail("PROFILE/master-cv.html already exists; refusing to overwrite it")
     name, bundle = template_bundle(template)
-    source = (bundle / "cv.html").read_text()
+    source = (bundle / "cv.html").read_text(encoding="utf-8")
     source = source.replace("../../../ASSETS/", "../ASSETS/")
     source = source.replace("../../../PROFILE/", "")
     source = apply_portrait_src(source, "")
@@ -324,7 +395,7 @@ def create_master(template: str = "") -> None:
     source = source.replace(
         "<head>", f'<head>\n  <meta name="cvcannon-template" content="{name}">', 1
     )
-    MASTER_CV.write_text(source)
+    MASTER_CV.write_text(source, encoding="utf-8")
     print(f"Created PROFILE/master-cv.html from template `{name}`")
     if portrait_name():
         print(f"Using PROFILE/{portrait_name()} as the portrait.")
@@ -343,7 +414,7 @@ def convert_portrait() -> None:
         return
     converter = tool("cwebp")
     if not converter:
-        fail("cwebp is required to convert the portrait to WebP; install the `webp` package")
+        fail("cwebp is required to convert the portrait to WebP; " + (f"run `{MAKE} install`" if WINDOWS else "install the `webp` package"))
     target = PROFILE / f"{PORTRAIT_STEM}.webp"
     run([converter, "-quiet", "-q", "90", str(chosen), "-o", str(target)])
     validate_portrait(target)
@@ -433,11 +504,11 @@ def analysis_scaffolds(slug: str) -> dict[str, str]:
 def scaffold_cv_source(*, template: str, bundle: Path) -> str:
     """Build an application CV source, matching the profile's portrait state."""
     if template:
-        source = (bundle / "cv.html").read_text()
+        source = (bundle / "cv.html").read_text(encoding="utf-8")
         source = source.replace("../../../ASSETS/", "../../ASSETS/")
         source = source.replace("../../../PROFILE/", "../../PROFILE/")
     else:
-        source = MASTER_CV.read_text()
+        source = MASTER_CV.read_text(encoding="utf-8")
         source = source.replace("../ASSETS/", "../../ASSETS/")
     source = apply_portrait_src(source, "../../PROFILE/")
     if portrait_file() is None:
@@ -453,29 +524,29 @@ def new(slug: str, template: str = "") -> None:
     if target.exists():
         fail(f"{target.relative_to(ROOT)} already exists; refusing to overwrite it")
     target.mkdir(parents=True)
-    (target / "cv.html").write_text(scaffold_cv_source(template=template, bundle=bundle))
-    cover_source = (bundle / "cover-letter.html").read_text()
+    (target / "cv.html").write_text(scaffold_cv_source(template=template, bundle=bundle), encoding="utf-8")
+    cover_source = (bundle / "cover-letter.html").read_text(encoding="utf-8")
     cover_source = cover_source.replace("../../../ASSETS/", "../../ASSETS/")
-    (target / "cover-letter.html").write_text(cover_source)
+    (target / "cover-letter.html").write_text(cover_source, encoding="utf-8")
     for filename, content in analysis_scaffolds(slug).items():
-        (target / filename).write_text(content)
+        (target / filename).write_text(content, encoding="utf-8")
     print(f"Created {target.relative_to(ROOT)} with template `{name}`")
     if template:
         print("Populate the selected CV template from PROFILE/master-cv.html, then tailor it for the role.")
     print("Fill job-description.md, job-analysis.md, and evidence-map.md before writing.")
-    print("Edit cv.html and cover-letter.html, then run: " + f"make build SLUG={slug}")
+    print(f"Edit cv.html and cover-letter.html, then run: {MAKE} build SLUG={slug}")
 
 
 def visible_text(path: Path) -> str:
     parser = VisibleText()
-    parser.feed(path.read_text())
+    parser.feed(path.read_text(encoding="utf-8"))
     return " ".join(" ".join(parser.parts).split())
 
 
 def validate_html(path: Path, *, cv: bool, portrait_prefix: str = "../../PROFILE/") -> None:
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
-    source = path.read_text()
+    source = path.read_text(encoding="utf-8")
     text = visible_text(path)
     runtime_source = re.sub(r"<!--.*?-->", "", source, flags=re.S)
     runtime_source = re.sub(r"<(style|script)\b.*?</\1>", "", runtime_source, flags=re.S | re.I)
@@ -536,7 +607,7 @@ def phrase_hits(text: str, phrases: tuple[str, ...]) -> list[str]:
 
 def cover_letter_body_words(path: Path) -> int | None:
     parser = ParagraphText("body-text")
-    parser.feed(path.read_text())
+    parser.feed(path.read_text(encoding="utf-8"))
     text = " ".join(" ".join(parser.parts).split())
     if not text:
         return None
@@ -591,7 +662,7 @@ def content_check(target: Path) -> None:
                 f"missing {path.relative_to(ROOT)}; create it from the artifact shapes in "
                 "docs/WRITING.md before building"
             )
-        if PENDING in path.read_text():
+        if PENDING in path.read_text(encoding="utf-8"):
             fail(
                 f"{path.relative_to(ROOT)} is still the scaffold; complete it before building "
                 "(see docs/WRITING.md)"
@@ -603,12 +674,18 @@ def render(html: Path, pdf: Path) -> None:
     browser_path = browser()
     if not browser_path:
         fail("Chromium or Google Chrome is required")
+    # A throwaway profile keeps headless runs independent of an open browser window.
+    # Without it, Chrome and Edge on Windows hand the request to the running instance.
+    profile = tempfile.mkdtemp(prefix="cvcannon-browser-")
     command = [
         browser_path,
         "--headless",
         "--disable-gpu",
         "--allow-file-access-from-files",
         "--no-pdf-header-footer",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--user-data-dir={profile}",
         "--virtual-time-budget=8000",
         f"--print-to-pdf={pdf.resolve()}",
     ]
@@ -617,7 +694,10 @@ def render(html: Path, pdf: Path) -> None:
     ):
         command.append("--no-sandbox")
     command.append(html.resolve().as_uri())
-    run(command)
+    try:
+        run(command)
+    finally:
+        shutil.rmtree(profile, ignore_errors=True)
     if not pdf.is_file() or pdf.stat().st_size < 1_000:
         fail(f"browser did not produce a valid {pdf.relative_to(ROOT)}")
 
@@ -651,7 +731,7 @@ def verify_pdf(pdf: Path, *, min_chars: int, require_image: bool) -> None:
         if len(columns) >= 6 and columns[-5].lower() != "yes":
             fail(f"{pdf.name} contains a non-embedded font: {columns[0]}")
 
-    text = run(["pdftotext", str(pdf), "-"], capture=True)
+    text = run(["pdftotext", "-enc", "UTF-8", str(pdf), "-"], capture=True)
     compact = re.sub(r"\s+", "", text)
     if len(compact) < min_chars:
         fail(f"{pdf.name} has only {len(compact)} extracted characters; expected at least {min_chars}")
@@ -675,7 +755,7 @@ def check(slug: str) -> None:
     for html_name, pdf_name, min_chars in DOCUMENTS:
         pdf = target / pdf_name
         html = target / html_name
-        require_image = html_name == "cv.html" and portrait_img_src(html.read_text()) is not None
+        require_image = html_name == "cv.html" and portrait_img_src(html.read_text(encoding="utf-8")) is not None
         verify_pdf(pdf, min_chars=min_chars, require_image=require_image)
         run([
             "pdftoppm", "-png", "-singlefile", "-r", "144", str(pdf),
@@ -690,7 +770,7 @@ def build(slug: str) -> None:
     doctor()
     target = app_dir(slug)
     if not target.is_dir():
-        fail(f"missing {target.relative_to(ROOT)}; run make new SLUG={slug} first")
+        fail(f"missing {target.relative_to(ROOT)}; run {MAKE} new SLUG={slug} first")
     for html_name, pdf_name, _ in DOCUMENTS:
         html = target / html_name
         validate_html(html, cv=(html_name == "cv.html"))
@@ -747,6 +827,211 @@ def clean_all() -> None:
     for_every_application(clean, "clean")
 
 
+def saved_choice(path: Path, value: str, allowed: tuple[str, ...], label: str) -> None:
+    """Print or save a local preference under the ignored .cvcannon/ directory."""
+    if not value:
+        if path.is_file():
+            print(path.read_text(encoding="utf-8").strip())
+            return
+        print("unset")
+        raise SystemExit(1)
+    if value not in allowed:
+        fail(f"{label} must be " + " or ".join(f"'{option}'" for option in allowed))
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(f"{value}\n", encoding="utf-8")
+    print(f"Saved cvcannon {label}: {value}")
+
+
+def configure_git() -> None:
+    if not (ROOT / ".git").exists():
+        run(["git", "init", "-b", "main"])
+    run(["git", "config", "core.hooksPath", ".githooks"])
+    if not WINDOWS:
+        for name in EXECUTABLES:
+            path = ROOT / name
+            if path.is_file():
+                path.chmod(path.stat().st_mode | 0o111)
+    print("Configured local Git hooks.")
+
+
+def setup() -> None:
+    configure_git()
+    doctor()
+
+
+def docker_ready() -> None:
+    if not tool("docker"):
+        fail("Docker is not installed or is not on PATH. Install Docker Desktop or Docker Engine with the Compose plugin.")
+    checks = (
+        (["docker", "compose", "version"], "Docker Compose is unavailable. Install a current Docker Desktop or Docker Engine with the Compose plugin."),
+        (["docker", "info"], "the Docker daemon is not running or is not accessible. Start Docker, then retry."),
+    )
+    for command, message in checks:
+        if subprocess.run(command, cwd=ROOT, capture_output=True, check=False).returncode:
+            fail(message)
+
+
+def docker_env() -> dict[str, str]:
+    env = dict(os.environ)
+    # Linux bind mounts keep host ownership, so run as the host user. Docker Desktop on
+    # Windows and macOS maps ownership itself and keeps the Compose default.
+    if hasattr(os, "getuid"):
+        env["CVCANNON_UID"] = str(os.getuid())
+        env["CVCANNON_GID"] = str(os.getgid())
+    return env
+
+
+def docker_run(args: list[str]) -> None:
+    docker_ready()
+    command = ["docker", "compose", "run", "--rm", "cvcannon", *(args or ["make", "help"])]
+    code = subprocess.run(command, cwd=ROOT, env=docker_env(), check=False).returncode
+    if code:
+        raise SystemExit(code)
+
+
+def docker_cv(command: str, *args: str) -> None:
+    docker_run(["python3", "scripts/cv.py", command, *args])
+
+
+def docker_image() -> None:
+    docker_ready()
+    code = subprocess.run(["docker", "compose", "build"], cwd=ROOT, env=docker_env(), check=False).returncode
+    if code:
+        raise SystemExit(code)
+
+
+def docker_setup() -> None:
+    docker_ready()
+    print("Building the cvcannon toolchain...")
+    docker_image()
+    configure_git()
+    print("Checking the container and repository...")
+    docker_cv("templates")
+    docker_cv("privacy")
+    if MASTER_CV.is_file() and MASTER_CV.stat().st_size:
+        docker_cv("doctor")
+        print("cvcannon is ready. Add listings, then create an application with:")
+        print(f"  {MAKE} docker-new SLUG=company-role")
+        return
+    print()
+    print("The Docker toolchain is ready. Continue the agent workflow:")
+    print("  1. Ask the user to drop an existing CV or career notes into PROFILE/, or provide them in chat.")
+    print(f"  2. Run {MAKE} docker-profile.")
+    print("  3. Complete PROFILE/master-cv.html from the supplied material.")
+    print(f"  4. Run {MAKE} docker-doctor.")
+
+
+def privacy() -> None:
+    code = subprocess.run([sys.executable, str(ROOT / "scripts" / "privacy_check.py")], check=False).returncode
+    if code:
+        raise SystemExit(code)
+
+
+def fetch(url: str) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": "cvcannon"})
+    with urllib.request.urlopen(request, timeout=300) as response:
+        return response.read()
+
+
+def github_asset(repository: str, pattern: str) -> str:
+    release = json.loads(fetch(f"https://api.github.com/repos/{repository}/releases/latest"))
+    for asset in release.get("assets", []):
+        if re.fullmatch(pattern, asset["name"]):
+            return asset["browser_download_url"]
+    fail(f"no download matching {pattern} in the latest {repository} release")
+
+
+def install_zip(name: str, url: str) -> Path:
+    """Download a zip into the per-user tools folder, replacing an older copy."""
+    print(f"Downloading {name} from {url}")
+    target = tools_home() / name
+    archive = tools_home() / f"{name}.zip"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    archive.write_bytes(fetch(url))
+    shutil.rmtree(target, ignore_errors=True)
+    with zipfile.ZipFile(archive) as bundle:
+        bundle.extractall(target)
+    archive.unlink()
+    return target
+
+
+def add_user_path(directory: Path) -> None:
+    """Append a folder to the user PATH so new terminals and this process find it."""
+    import ctypes
+    import winreg
+
+    entry = str(directory)
+    access = winreg.KEY_READ | winreg.KEY_WRITE
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, "Environment", 0, access) as key:
+        try:
+            value, kind = winreg.QueryValueEx(key, "Path")
+        except FileNotFoundError:
+            value, kind = "", winreg.REG_EXPAND_SZ
+        entries = [item for item in str(value).split(";") if item]
+        if os.path.normcase(entry) not in {os.path.normcase(item) for item in entries}:
+            if kind not in (winreg.REG_SZ, winreg.REG_EXPAND_SZ):
+                kind = winreg.REG_EXPAND_SZ
+            winreg.SetValueEx(key, "Path", 0, kind, ";".join(entries + [entry]))
+    # Tell Explorer and terminals opened later that the environment changed.
+    ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None)
+    refresh_windows_path()
+    if os.path.normcase(entry) not in {os.path.normcase(item) for item in os.environ["PATH"].split(os.pathsep)}:
+        os.environ["PATH"] += os.pathsep + entry
+
+
+def tools(*, docker: bool = False) -> None:
+    """Report the software cvcannon needs and fail when a required tool is missing."""
+    rows = [("python", sys.executable, True), ("git", tool("git"), True)]
+    if docker:
+        rows.append(("docker", tool("docker"), True))
+    else:
+        rows.append(("browser", browser(), True))
+        rows += [(name, tool(name), True) for name in REQUIRED_TOOLS]
+        rows.append(("cwebp (portrait-convert only)", tool("cwebp"), False))
+    for name, found, _ in rows:
+        print(f"{name}: {found or 'missing'}")
+    missing = [name for name, found, required in rows if required and not found]
+    if missing:
+        hint = f" Run `{MAKE} install` to install them." if WINDOWS else " See docs/SETUP.md."
+        fail("missing " + ", ".join(missing) + "." + hint)
+    print("All required tools are available.")
+
+
+def install(mode: str = "") -> None:
+    """Install the Windows toolchain per user, without administrator rights or prompts."""
+    mode = mode or "native"
+    if not WINDOWS:
+        fail("`install` sets up Windows. On Linux and macOS, install the packages listed in docs/SETUP.md.")
+    if mode not in ("native", "docker"):
+        fail("install mode must be 'native' or 'docker'")
+    if not tool("git"):
+        home = install_zip("git", github_asset("git-for-windows/git", r"MinGit-[\d.]+-64-bit\.zip"))
+        add_user_path(home / "cmd")
+    if mode == "docker":
+        if not tool("docker"):
+            fail(
+                "Docker Desktop is not installed. It needs administrator rights and usually a "
+                "restart, so ask the user to install it from " + DOCKER_DESKTOP + " or with "
+                "`winget install --id Docker.DockerDesktop -e`, start it, and then continue with "
+                f"`{MAKE} docker-setup`. Alternatively, choose native mode, which needs no installation by the user."
+            )
+        tools(docker=True)
+        return
+    if not all(tool(name) for name in REQUIRED_TOOLS):
+        home = install_zip("poppler", github_asset("oschwartz10612/poppler-windows", r"Release-[\d.-]+\.zip"))
+        add_user_path(next(home.glob("*/Library/bin")))
+    if not tool("cwebp"):
+        home = install_zip("libwebp", LIBWEBP_URL)
+        add_user_path(next(home.glob("*/bin")))
+    if not browser():
+        # Windows normally includes Edge. Without any Chromium-family browser, download
+        # Chrome's portable headless build, which needs no installer.
+        downloads = json.loads(fetch(CHROME_FOR_TESTING))["channels"]["Stable"]["downloads"]
+        url = next(item["url"] for item in downloads["chrome-headless-shell"] if item["platform"] == "win64")
+        install_zip("chrome-headless-shell", url)
+    tools()
+
+
 def help_text() -> None:
     print(
         """cvcannon — turn batches of job listings into polished application packs
@@ -765,21 +1050,57 @@ def help_text() -> None:
   make clean-all                     remove generated files from every application
   make privacy                       scan Git candidates for personal data
 
-  ./docker-setup.sh                  build and verify the optional Docker toolchain
+  make docker-setup                  build and verify the optional Docker toolchain
   make docker-new SLUG=role          scaffold through Docker
   make docker-build SLUG=role        render and verify through Docker
+
+On Windows, use cvcannon.cmd in place of make, with the same arguments:
+
+  cvcannon.cmd install [docker]      install Python and the toolchain for the current user
+  cvcannon.cmd build SLUG=company-role
+
+Additional commands (cvcannon.cmd <command>, or python3 scripts/cv.py <command>):
+
+  tools                              report the required software
+  mode [docker|native]               print or save the execution mode
+  portrait [wanted|none]             print or save the portrait preference
+  docker <command...>                run any command in the toolchain container
 """
     )
 
 
 def main(argv: list[str]) -> None:
+    for stream in (sys.stdout, sys.stderr):
+        # Windows consoles and pipes may use a legacy code page that cannot print every
+        # character in these messages.
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+    if WINDOWS:
+        refresh_windows_path()
     command = argv[1] if len(argv) > 1 else "help"
-    slug = argv[2] if len(argv) > 2 else ""
-    template = argv[3] if len(argv) > 3 else ""
+    # Accept make-style SLUG=... and TEMPLATE=... as well as positional values.
+    named = dict(arg.split("=", 1) for arg in argv[2:] if re.match(r"(SLUG|TEMPLATE)=", arg))
+    positional = [arg for arg in argv[2:] if not re.match(r"(SLUG|TEMPLATE)=", arg)]
+    slug = named.get("SLUG", positional[0] if positional else "")
+    template = named.get("TEMPLATE", positional[1] if len(positional) > 1 else "")
+    if command == "docker":
+        docker_run(argv[2:])
+        return
+    if command.startswith("docker-") and command[len("docker-"):] in DOCKER_COMMANDS:
+        docker_cv(command[len("docker-"):], *argv[2:])
+        return
     actions = {
         "help": lambda: help_text(),
+        "setup": setup,
+        "mode": lambda: saved_choice(MODE_PREFERENCE, slug, ("docker", "native"), "execution mode"),
+        "portrait": lambda: saved_choice(PORTRAIT_PREFERENCE, slug, ("wanted", "none"), "portrait preference"),
+        "privacy": privacy,
+        "install": lambda: install(slug),
+        "tools": tools,
+        "docker-setup": docker_setup,
+        "docker-image": docker_image,
         "templates": list_templates,
-        "profile": lambda: create_master(slug),
+        "profile": lambda: create_master(named.get("TEMPLATE") or slug),
         "doctor": doctor,
         "portrait-convert": convert_portrait,
         "new": lambda: new(slug, template),

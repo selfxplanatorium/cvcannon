@@ -2,19 +2,29 @@
 
 Run commands from the project root.
 
+Every `make` target is also available as `python3 scripts/cv.py <target> [SLUG=...] [TEMPLATE=...]`. On Windows, `cvcannon.cmd` replaces `make` with the same arguments, for example `cvcannon.cmd new SLUG=acme-role TEMPLATE=editorial`. It installs Python first when none is available.
+
+## `cvcannon.cmd install [docker]` (Windows)
+
+Installs the native toolchain for the current user without administrator rights or prompts: Python from python.org, then Git (MinGit), Poppler, and `cwebp` into `%LOCALAPPDATA%\cvcannon\tools`, each added to the user `PATH`. Downloads a portable headless Chrome only when no Edge, Chrome, or Chromium is installed. Existing tools are kept, so rerunning it is fast. With `docker`, it installs only Python and Git and fails with instructions when Docker Desktop is missing. It ends by running `tools`.
+
+## `make tools`
+
+Lists the path of every required program (Python, Git, browser, and Poppler commands) and the optional `cwebp`. Exits nonzero when a required program is missing. Unlike `doctor`, it does not need the authoritative CV.
+
 Every document command has a Docker equivalent. See [Docker commands](#docker-commands) or the [Docker guide](DOCKER.md).
 
-## `bash scripts/mode.sh [docker|native]`
+## `python3 scripts/cv.py mode [docker|native]`
 
-With no argument, prints the locally selected execution mode. With `docker` or `native`, saves that mode under the ignored `.cvcannon/` directory. The agent uses this during first-time setup; users do not need to invoke it themselves.
+`bash scripts/mode.sh` is an equivalent shortcut on Linux and macOS. With no argument, prints the locally selected execution mode. With `docker` or `native`, saves that mode under the ignored `.cvcannon/` directory. The agent uses this during first-time setup; users do not need to invoke it themselves.
 
-## `bash scripts/portrait.sh [wanted|none]`
+## `python3 scripts/cv.py portrait [wanted|none]`
 
-With no argument, prints the saved portrait preference. With `wanted` or `none`, records whether the user intends to include a photo, under the ignored `.cvcannon/` directory. The agent uses this so it asks about a missing portrait only once; users do not need to invoke it themselves.
+`bash scripts/portrait.sh` is an equivalent shortcut on Linux and macOS. With no argument, prints the saved portrait preference. With `wanted` or `none`, records whether the user intends to include a photo, under the ignored `.cvcannon/` directory. The agent uses this so it asks about a missing portrait only once; users do not need to invoke it themselves.
 
 ## `make setup`
 
-Configures Git hooks, sets executable bits, and runs `doctor`. It initializes a Git repository when needed.
+Configures Git hooks, sets executable bits on Linux and macOS, and runs `doctor`. It initializes a Git repository when needed.
 
 ## `make profile`
 
@@ -28,11 +38,11 @@ Lists complete template bundles found under `BASE/TEMPLATES/`. Each bundle must 
 
 ## `make doctor`
 
-Checks for a supported browser, all required Poppler commands, templates, static fonts, and a complete authoritative CV. It accepts `PROFILE/portrait.webp`, `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, prefers WebP, and notes when the saved portrait preference should be confirmed. A nonzero exit identifies each missing requirement.
+Checks for a supported browser (Chromium, Google Chrome, or Microsoft Edge on Windows, or the executable in `CVCANNON_BROWSER`), all required Poppler commands, templates, static fonts, and a complete authoritative CV. It accepts `PROFILE/portrait.webp`, `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, prefers WebP, and notes when the saved portrait preference should be confirmed. A nonzero exit identifies each missing requirement.
 
 ## `make portrait-convert`
 
-Converts the portrait in `PROFILE/` to WebP, which renders the same and keeps the finished PDF smaller. It requires `cwebp` from the `webp` package. If the portrait is already WebP, the command reports that and does nothing. After conversion, point the CV portrait `src` at `portrait.webp` and remove the original if unused.
+Converts the portrait in `PROFILE/` to WebP, which renders the same and keeps the finished PDF smaller. It requires `cwebp` from the `webp` package, which `cvcannon.cmd install` provides on Windows. If the portrait is already WebP, the command reports that and does nothing. After conversion, point the CV portrait `src` at `portrait.webp` and remove the original if unused.
 
 ## `make new SLUG=<slug>`
 
@@ -60,7 +70,7 @@ Apply `build`, `check`, or `clean` to every complete application under `APPLICAT
 
 ## `make privacy`
 
-Scans files eligible for commit. The pre-commit hook uses `python3 scripts/privacy_check.py --staged` to inspect staged content instead.
+Scans files eligible for commit. The pre-commit hook runs `scripts/privacy_check.py --staged` to inspect staged content instead. It uses the first working `python3`, `python`, or `py -3`, so it also runs under Git for Windows.
 
 ## Docker commands
 
@@ -86,9 +96,11 @@ The remaining targets mirror the native commands:
 For an uncommon command, run it through the wrapper directly:
 
 ```bash
-scripts/docker.sh make help
+python3 scripts/cv.py docker make help
 ```
+
+`scripts/docker.sh make help` is an equivalent shortcut on Linux and macOS. On Windows, use `cvcannon.cmd docker make help`.
 
 ## Outputs and exit status
 
-Commands exit with status `0` on success and a nonzero status on failure. Errors begin with `ERROR:` and state the failed requirement. An exception: `scripts/mode.sh` and `scripts/portrait.sh` exit `1` when queried with no argument and no saved value, which is a normal "unset" result rather than an error.
+Commands exit with status `0` on success and a nonzero status on failure. Errors begin with `ERROR:` and state the failed requirement. An exception: `mode` and `portrait` exit `1` when queried with no argument and no saved value, which is a normal "unset" result rather than an error.

@@ -36,3 +36,33 @@ jobs:
           scripts/docker.sh make privacy
       - name: Run full pipeline smoke test
         run: scripts/docker.sh python3 scripts/smoke_test.py
+
+  windows-native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the toolchain from a terminal without Python on PATH
+        shell: cmd
+        run: |
+          set "PATH=C:\Windows\System32;C:\Windows"
+          call cvcannon.cmd install
+      - name: Report tools through the installed Python
+        shell: cmd
+        run: |
+          set "PATH=C:\Windows\System32;C:\Windows"
+          call cvcannon.cmd tools
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Run pipeline unit tests
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests -q
+      - name: Check public files for privacy risks
+        shell: cmd
+        run: call cvcannon.cmd privacy
+      - name: Run the pre-commit hook through Git for Windows
+        shell: bash
+        run: sh .githooks/pre-commit
+      - name: Run full pipeline smoke test
+        run: python scripts/smoke_test.py

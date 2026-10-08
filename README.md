@@ -12,7 +12,7 @@ The agent supplies judgment and writing. The repository supplies the portable wo
 
 Launch the agent from the cloned repository root so it can discover `AGENTS.md` and work with the project files. When Docker is enabled, the agent still runs on the host. Docker commands mount that same repository at `/workspace`, perform one requested operation, write the results back into the shared folders, and exit.
 
-It is built for turning a long list of opportunities into consistent, review-ready application packs within minutes. Reusable HTML templates, bundled static fonts, headless Chromium, and Poppler checks keep the output polished and ATS readable. The default template bundles both of its families, so the same source renders the same page on Docker, Linux, and macOS.
+It is built for turning a long list of opportunities into consistent, review-ready application packs within minutes. Reusable HTML templates, bundled static fonts, headless Chromium, and Poppler checks keep the output polished and ATS readable. The default template bundles both of its families, so the same source renders the same page on Docker, Linux, macOS, and Windows.
 
 The included design is a starting point. Templates are intentionally customizable: typography, fonts, colors, spacing, section structure, icons, and other visual choices can be changed. Multiple named CV and cover letter template pairs can be saved and reused.
 
@@ -33,7 +33,9 @@ Clone the repository, change into its root folder, and launch your preferred age
 On first use, the agent asks you to choose:
 
 - **Docker:** cvcannon supplies Python, Chromium, Poppler, and system fonts in a reproducible container. You need Docker Desktop, or Docker Engine with the Compose plugin.
-- **Native:** cvcannon uses Python, Chromium, Poppler, Make, and Git installed directly on your computer.
+- **Native:** cvcannon uses Python, a Chromium-family browser, Poppler, Make, and Git installed directly on your computer. On Windows, the agent installs everything itself with `cvcannon.cmd install`, without administrator rights. See the [setup guide](docs/SETUP.md#windows).
+
+> **Experimental:** Windows support has not been tested on a real Windows machine yet. It has only been tested through compatibility layers (Wine). Report problems through the repository's issue tracker.
 
 The agent saves the choice locally, performs setup, checks the environment, and uses the matching commands in later sessions. You do not need to launch repository setup scripts yourself.
 
@@ -42,13 +44,15 @@ Docker remains a tool runner. The agent stays in the host repository, reads `AGE
 For reference, the agent runs commands like these in Docker mode:
 
 ```bash
-./docker-setup.sh
+make docker-setup
 make docker-profile
 make docker-new SLUG=acme-platform-engineer
 make docker-build SLUG=acme-platform-engineer
 ```
 
 See the [Docker guide](docs/DOCKER.md) for the complete command list and architecture.
+
+On Windows, run every `make` command in this README and the docs as `cvcannon.cmd` with the same arguments, for example `cvcannon.cmd build SLUG=acme-platform-engineer`. Docker on Windows also requires Docker Desktop, which the user installs.
 
 ### 2. Provide existing candidate information
 
@@ -85,7 +89,7 @@ make privacy
 
 `make setup` configures the project and checks the required software and authoritative CV.
 
-In Docker mode, the agent already configured the repository with `./docker-setup.sh`; after completing the master CV, it runs `make docker-doctor` and `make docker-privacy` here.
+In Docker mode, the agent already configured the repository with `make docker-setup`; after completing the master CV, it runs `make docker-doctor` and `make docker-privacy` here.
 
 ### 4. Provide one or more listings
 

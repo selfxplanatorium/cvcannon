@@ -15,7 +15,10 @@ RUN apt-get update \
         poppler-utils \
         python3 \
         webp \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # Docker Desktop on Windows can present the bind mount with another owner,
+    # which Git otherwise rejects as dubious ownership.
+    && git config --system --add safe.directory /workspace
 
 WORKDIR /workspace
 

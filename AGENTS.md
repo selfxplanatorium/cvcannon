@@ -53,16 +53,19 @@ The scripts do not interpret job listings, choose evidence, or write tailored co
 
 At the beginning of work, check `.cvcannon/mode`.
 
-If the file is missing, ask the user one short question before running setup: whether they want the Docker toolchain or tools installed natively. Explain that Docker standardizes Python, Chromium, Poppler, and fonts; native mode uses installations already available on their machine. Do not choose on the user's behalf.
+If the file is missing, ask the user one short question before running setup: whether they want the Docker toolchain or tools installed natively. Explain that Docker standardizes Python, Chromium, Poppler, and fonts; native mode uses tools installed directly on their machine. On Windows, native mode needs nothing from the user: the agent installs every tool for the current user without administrator rights. Docker on Windows requires the user to install Docker Desktop first. Do not choose on the user's behalf.
 
 After the user answers:
 
-1. Run `bash scripts/mode.sh docker` or `bash scripts/mode.sh native` to save the choice locally.
-2. For Docker, run `bash docker-setup.sh` yourself. Do not tell the user to launch it.
-3. For native mode, inspect the prerequisites and guide any required system installation, then run the native commands yourself. Run `make setup` after the authoritative CV has been completed because its doctor validates that file.
-4. Use the selected command family for later work: `make docker-*` for Docker or the ordinary `make` targets for native mode.
+1. On Windows, run `cvcannon.cmd install` for native mode or `cvcannon.cmd install docker` for Docker before anything else. It installs Python, Git, Poppler, `cwebp`, and a browser only when missing, for the current user, without administrator rights or prompts. If it reports that Docker Desktop is missing, relay that message to the user.
+2. Run `python3 scripts/cv.py mode docker` or `python3 scripts/cv.py mode native` to save the choice locally.
+3. For Docker, run `make docker-setup` yourself. Do not tell the user to launch it.
+4. For native mode on Linux or macOS, run `make tools`, install anything it reports missing using `docs/SETUP.md`, then run the native commands yourself. On every platform, run `make setup` after the authoritative CV has been completed because its doctor validates that file.
+5. Use the selected command family for later work: `make docker-*` for Docker or the ordinary `make` targets for native mode.
 
-The saved mode is a local preference and is ignored by Git. If the user asks to switch modes, update it with `scripts/mode.sh` and run the selected setup. Never require the user to launch repository scripts manually; invoke them through the harness.
+On Windows, use `cvcannon.cmd` wherever this file says `make` or `python3 scripts/cv.py`, with the same arguments: `make build SLUG=acme-role` becomes `cvcannon.cmd build SLUG=acme-role`, and `python3 scripts/cv.py mode native` becomes `cvcannon.cmd mode native`. Call it as `.\cvcannon.cmd` from PowerShell and `./cvcannon.cmd` from Git Bash. It finds tools installed earlier in the same session, so no terminal restart is needed. Windows support is experimental: it has been tested only through compatibility layers (Wine), not on a real Windows machine. Tell the user this once when setting up on Windows.
+
+The saved mode is a local preference and is ignored by Git. If the user asks to switch modes, update it with `scripts/cv.py mode` and run the selected setup. Never require the user to launch repository scripts manually; invoke them through the harness.
 
 ## Sources of truth
 
@@ -102,7 +105,7 @@ A portrait is optional. Supported files are `PROFILE/portrait.webp`, `PROFILE/po
 
 - If a portrait file exists and the user wants a photo, keep the portrait `<img>` in the master CV with its `src` set to that filename. `make profile` and `make new` set the correct path automatically.
 - If the user does not want a photo, the master CV is photo-free; remove the portrait `<img>`.
-- If no portrait is present and no preference is saved, ask the user whether they intended one before continuing. If yes, ask them to add `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, then save the choice with `bash scripts/portrait.sh wanted`. If no, save it with `bash scripts/portrait.sh none` and take no further action.
+- If no portrait is present and no preference is saved, ask the user whether they intended one before continuing. If yes, ask them to add `PROFILE/portrait.webp` (preferred), `PROFILE/portrait.png`, `PROFILE/portrait.jpg`, or `PROFILE/portrait.jpeg`, then save the choice with `python3 scripts/cv.py portrait wanted`. If no, save it with `python3 scripts/cv.py portrait none` and take no further action.
 - The saved preference lives in `.cvcannon/portrait` and is ignored by Git. Do not ask again once it is saved. If the user changes their mind, update the file and the master CV.
 
 Do not force the user into a schema, require them to rewrite an existing CV, or invent missing details. Never force-add files under `PROFILE/` to Git.

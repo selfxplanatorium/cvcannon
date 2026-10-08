@@ -4,7 +4,7 @@ Provide one listing or a batch of listings. cvcannon creates one folder and one 
 
 Every application follows the writing pipeline documented in [WRITING.md](WRITING.md). The scripts scaffold the intermediate artifacts, but the agent completes the analysis, the evidence map, and the writing. Do the stages in order: the analysis grounds both documents.
 
-The examples below use native commands. With the optional Docker toolchain, add `docker-` to the target: `make docker-new`, `make docker-build`, and `make docker-check`. See [the Docker guide](DOCKER.md).
+The examples below use native commands. With the optional Docker toolchain, add `docker-` to the target: `make docker-new`, `make docker-build`, and `make docker-check`. See [the Docker guide](DOCKER.md). On Windows, run every `make` command in these docs as `cvcannon.cmd` with the same arguments, for example `cvcannon.cmd build SLUG=acme-platform-engineer`.
 
 ## 1. Provide the listings
 

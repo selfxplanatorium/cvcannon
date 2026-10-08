@@ -1,91 +1,99 @@
 .PHONY: help setup templates profile doctor portrait-convert new build check build-all check-all \
-	privacy clean clean-all \
+	privacy tools clean clean-all \
 	docker-setup docker-image docker-templates docker-profile docker-doctor \
 	docker-portrait-convert docker-new docker-build docker-check docker-build-all docker-check-all \
 	docker-privacy docker-clean docker-clean-all
 
+ifeq ($(OS),Windows_NT)
+PYTHON ?= python
+else
 PYTHON ?= python3
+endif
+CV = @$(PYTHON) scripts/cv.py
 
 help:
-	@$(PYTHON) scripts/cv.py help
+	$(CV) help
 
 setup:
-	@bash scripts/setup.sh
+	$(CV) setup
 
 templates:
-	@$(PYTHON) scripts/cv.py templates
+	$(CV) templates
 
 profile:
-	@$(PYTHON) scripts/cv.py profile "$(TEMPLATE)"
+	$(CV) profile "$(TEMPLATE)"
 
 doctor:
-	@$(PYTHON) scripts/cv.py doctor
+	$(CV) doctor
 
 portrait-convert:
-	@$(PYTHON) scripts/cv.py portrait-convert
+	$(CV) portrait-convert
 
 new:
-	@$(PYTHON) scripts/cv.py new "$(SLUG)" "$(TEMPLATE)"
+	$(CV) new "$(SLUG)" "$(TEMPLATE)"
 
 build:
-	@$(PYTHON) scripts/cv.py build "$(SLUG)"
+	$(CV) build "$(SLUG)"
 
 check:
-	@$(PYTHON) scripts/cv.py check "$(SLUG)"
+	$(CV) check "$(SLUG)"
 
 build-all:
-	@$(PYTHON) scripts/cv.py build-all
+	$(CV) build-all
 
 check-all:
-	@$(PYTHON) scripts/cv.py check-all
+	$(CV) check-all
+
+tools:
+	$(CV) tools
 
 privacy:
-	@$(PYTHON) scripts/privacy_check.py
+	$(CV) privacy
 
 clean:
-	@$(PYTHON) scripts/cv.py clean "$(SLUG)"
+	$(CV) clean "$(SLUG)"
 
 clean-all:
-	@$(PYTHON) scripts/cv.py clean-all
+	$(CV) clean-all
 
 docker-setup:
-	@bash docker-setup.sh
+	$(CV) docker-setup
 
 docker-image:
-	@docker compose build
+	$(CV) docker-image
 
 docker-templates:
-	@scripts/docker.sh make templates
+	$(CV) docker-templates
 
 docker-profile:
-	@scripts/docker.sh make profile TEMPLATE="$(TEMPLATE)"
+	$(CV) docker-profile "$(TEMPLATE)"
 
 docker-doctor:
-	@scripts/docker.sh make doctor
+	$(CV) docker-doctor
 
 docker-portrait-convert:
-	@scripts/docker.sh make portrait-convert
+	$(CV) docker-portrait-convert
 
 docker-new:
-	@scripts/docker.sh make new SLUG="$(SLUG)" TEMPLATE="$(TEMPLATE)"
+	$(CV) docker-new "$(SLUG)" "$(TEMPLATE)"
 
 docker-build:
-	@scripts/docker.sh make build SLUG="$(SLUG)"
+	$(CV) docker-build "$(SLUG)"
 
 docker-check:
-	@scripts/docker.sh make check SLUG="$(SLUG)"
+	$(CV) docker-check "$(SLUG)"
 
 docker-build-all:
-	@scripts/docker.sh make build-all
+	$(CV) docker-build-all
 
 docker-check-all:
-	@scripts/docker.sh make check-all
+	$(CV) docker-check-all
 
 docker-privacy:
-	@scripts/docker.sh make privacy
+	$(CV) docker-privacy
 
 docker-clean:
-	@scripts/docker.sh make clean SLUG="$(SLUG)"
+	$(CV) docker-clean "$(SLUG)"
 
 docker-clean-all:
-	@scripts/docker.sh make clean-all
+	$(CV) docker-clean-all

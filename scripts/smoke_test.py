@@ -3,7 +3,8 @@
 
 The test runs against a throwaway copy of the repository, so it never touches the
 real PROFILE/ or APPLICATIONS/ folders. It is intended for CI, where the Docker
-toolchain supplies Chromium and Poppler.
+toolchain or the Windows runner supplies the browser and Poppler. The candidate name
+contains a non-ASCII character to catch locale-dependent file encoding on Windows.
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ MASTER_CV = """<!DOCTYPE html>
 </head>
 <body>
   <main class="cv">
-    <h1>Smoke Test Candidate</h1>
+    <h1>Ágnes Smoke Test Candidate</h1>
     <p>Systems operator focused on automation, Linux administration, integrations, and production support.</p>
     <h2>Profile</h2>
     <p>Maintains self-hosted infrastructure and internal tooling for small teams. Builds and debugs workflow automations, integrates external APIs, and keeps production systems running without downtime. Comfortable owning an unfamiliar system end to end, documenting how it works, and improving the parts that fail most often.</p>
@@ -98,7 +99,7 @@ ANALYSIS = {
 
 def run(*args: str, cwd: Path) -> None:
     print(f"$ {' '.join(args)}")
-    result = subprocess.run(args, cwd=cwd, text=True)
+    result = subprocess.run(args, cwd=cwd)
     if result.returncode:
         raise SystemExit(f"smoke test command failed: {' '.join(args)}")
 
@@ -110,15 +111,15 @@ def main() -> None:
         repo = workdir / "repo"
         (repo / "PROFILE").mkdir()
         (repo / "APPLICATIONS").mkdir()
-        (repo / "PROFILE" / "master-cv.html").write_text(MASTER_CV)
+        (repo / "PROFILE" / "master-cv.html").write_text(MASTER_CV, encoding="utf-8")
 
         run(sys.executable, "scripts/cv.py", "doctor", cwd=repo)
         run(sys.executable, "scripts/cv.py", "new", SLUG, cwd=repo)
 
         target = repo / "APPLICATIONS" / SLUG
-        (target / "cover-letter.html").write_text(COVER_LETTER)
+        (target / "cover-letter.html").write_text(COVER_LETTER, encoding="utf-8")
         for name, content in ANALYSIS.items():
-            (target / name).write_text(content)
+            (target / name).write_text(content, encoding="utf-8")
 
         run(sys.executable, "scripts/cv.py", "build", SLUG, cwd=repo)
         run(sys.executable, "scripts/cv.py", "check", SLUG, cwd=repo)

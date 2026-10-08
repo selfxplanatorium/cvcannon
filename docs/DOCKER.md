@@ -21,7 +21,7 @@ When the agent runs a Docker target, the call flows like this:
 ```text
 agent in the host repository
   -> make docker-build SLUG=acme-platform-engineer
-  -> scripts/docker.sh
+  -> scripts/cv.py docker-build
   -> docker compose run --rm cvcannon ...
   -> repository mounted at /workspace
   -> generated files written into the host checkout
@@ -59,15 +59,17 @@ docker compose version
 On the first session, the agent asks whether to use Docker or native tools. When Docker is selected, the agent saves that preference and runs this command from the repository root:
 
 ```bash
-./docker-setup.sh
+make docker-setup
 ```
 
-The script:
+On Windows, the agent first runs `cvcannon.cmd install docker` for Python and Git, then `cvcannon.cmd docker-setup`. On Linux and macOS, `./docker-setup.sh` is a shortcut for it.
+
+The command:
 
 1. verifies the Docker CLI, Compose plugin, and running daemon;
 2. builds `cvcannon:local` from the included `Dockerfile`;
 3. configures the repository's committed pre-commit hook;
-4. maps container writes to the current host user and group;
+4. maps container writes to the current host user and group on Linux;
 5. lists the available templates and runs the privacy scan; and
 6. runs the full doctor when an authoritative CV already exists.
 
@@ -104,13 +106,15 @@ make docker-new SLUG=acme-platform-engineer
 make docker-build SLUG=acme-platform-engineer
 ```
 
-The repository is bind-mounted at `/workspace`, so generated PDFs and previews appear directly under `APPLICATIONS/<slug>/` on the host. The wrapper uses the host user and group IDs to prevent root-owned outputs on Linux.
+The repository is bind-mounted at `/workspace`, so generated PDFs and previews appear directly under `APPLICATIONS/<slug>/` on the host. The wrapper uses the host user and group IDs to prevent root-owned outputs on Linux. Docker Desktop on Windows and macOS maps file ownership itself.
+
+On Windows, Docker Desktop must use Linux containers (the default). Keep the checkout on a local drive that Docker Desktop can share.
 
 ## Command map
 
 | Task | Docker command |
 | --- | --- |
-| Guided setup | `./docker-setup.sh` or `make docker-setup` |
+| Guided setup | `make docker-setup` (Windows: `cvcannon.cmd docker-setup`) |
 | Rebuild the image | `make docker-image` |
 | List templates | `make docker-templates` |
 | Create master CV | `make docker-profile [TEMPLATE=name]` |
@@ -125,17 +129,22 @@ The repository is bind-mounted at `/workspace`, so generated PDFs and previews a
 The generic wrapper can run another command in the same container:
 
 ```bash
-scripts/docker.sh make help
-scripts/docker.sh python3 --version
+python3 scripts/cv.py docker make help
+python3 scripts/cv.py docker python3 --version
 ```
+
+On Windows, replace `python3 scripts/cv.py` with `cvcannon.cmd`.
+
+On Linux and macOS, `scripts/docker.sh` is a shortcut for `python3 scripts/cv.py docker`.
 
 ## How it works
 
 - `Dockerfile` pins the operating-system family and installs the complete rendering toolchain.
 - `compose.yaml` mounts the current checkout, sets the working directory, maps the host user, and gives Chromium sufficient shared memory.
 - The Compose environment marks Chromium as containerized so it uses Docker isolation instead of attempting to create a nested browser sandbox.
-- `scripts/docker.sh` validates Docker and runs a single disposable container.
-- `docker-setup.sh` builds the image and prepares a new clone.
+- `scripts/cv.py docker` validates Docker and runs a single disposable container. It is plain Python, so it works the same on Windows, macOS, and Linux.
+- `scripts/cv.py docker-setup` builds the image and prepares a new clone.
+- The image trusts `/workspace` in Git, because Docker Desktop on Windows can present the mount with another owner.
 - `.dockerignore` keeps Git metadata, candidate sources, applications, and generated documents out of the image build context.
 
 Containers are disposable. The repository is the persistent state, so native and Docker commands can be mixed when their tool versions produce acceptable output.
@@ -154,4 +163,4 @@ To discard the local image manually:
 docker image rm cvcannon:local
 ```
 
-The next `./docker-setup.sh` or `make docker-image` recreates it.
+The next `make docker-setup` or `make docker-image` recreates it.

@@ -17,9 +17,10 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".heic"}
 PUBLIC_IMAGES = {"ASSETS/branding/cvcannon-logo.png"}
 PATTERNS = (
     ("absolute home path", re.compile(r"(?:/home/|/Users/)[A-Za-z0-9._-]+/")),
+    ("absolute Windows profile path", re.compile(r"\b[A-Z]:[\\/]+Users[\\/]+[^\\/\s\"']+[\\/]", re.I)),
     ("email address", re.compile(r"\b[A-Z0-9._%+-]+@(?!example\.(?:com|org|net)\b)[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)),
     ("international phone number", re.compile(r"(?<![\w.-])\+[1-9][0-9 ()-]{7,}[0-9]")),
-    ("file URL with absolute path", re.compile(r"file:///(?:home|Users)/")),
+    ("file URL with absolute path", re.compile(r"file:///(?:home|Users|[A-Z]:/Users)/", re.I)),
 )
 
 
@@ -28,7 +29,14 @@ def git_paths(staged: bool) -> list[str]:
         command = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"]
     else:
         command = ["git", "ls-files", "--cached", "--others", "--exclude-standard"]
-    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False)
+    try:
+        result = subprocess.run(
+            command, cwd=ROOT, text=True, encoding="utf-8", errors="replace",
+            capture_output=True, check=False,
+        )
+    except FileNotFoundError:
+        print("ERROR: Git is not installed or is not on PATH.", file=sys.stderr)
+        raise SystemExit(1)
     if result.returncode:
         print("ERROR: initialize Git with `make setup` before running the privacy scan.", file=sys.stderr)
         raise SystemExit(1)
